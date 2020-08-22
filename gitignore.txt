@@ -1,4 +1,0 @@
-/.gitignore
-
-# Ignore API KEY file
-./config.cfg
