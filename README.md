@@ -1,3 +1,2 @@
 # AutoFinanceBot
 
-hELLO
