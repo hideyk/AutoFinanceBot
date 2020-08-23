@@ -1,4 +1,4 @@
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import CallbackQueryHandler, CommandHandler, ConversationHandler
 from emoji import emojize
 
@@ -8,31 +8,34 @@ EXPENSES = ["🍕:fnb", "💕:date", "🚇:publictransport", "🚕:privatetransp
 RETURNS = ["📈:investment"]
 RECURRING = ["💵:income", "📱:phonebill"]
 BACK_BUTTON = [InlineKeyboardButton("🔙", callback_data="back")]
+EXIT_BUTTON = [InlineKeyboardButton("🔚", callback_data="exit")]
 
 
 def add_helper(update, context):
-    keyboard = [[InlineKeyboardButton("💸", callback_data='💸:expense'),
+    keyboard = [[KeyboardButton("💸", callback_data='💸:expense'),
                  InlineKeyboardButton("💰", callback_data='💰:return'),
-                 InlineKeyboardButton("📆", callback_data='📆:recurring')]
+                 InlineKeyboardButton("📆", callback_data='📆:recurring')],
+                EXIT_BUTTON
                 ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
+    reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
     if update.message:
         update.message.reply_text(
-        "Add a new item?",
-        reply_markup=reply_markup
+            "What shall we add today?",
+            reply_markup=reply_markup
         )
     else:
         update.callback_query.edit_message_text(
             text="Let's try this again",
             reply_markup=reply_markup
         )
+    print("hi")
     return FIRST
 
 
 def add_expense(update, context):
     query = update.callback_query
     query.answer()
-    keyboard = [[InlineKeyboardButton(x.split(":")[0], callback_data=x) for x in EXPENSES], BACK_BUTTON]
+    keyboard = [[InlineKeyboardButton(x.split(":")[0], callback_data="expense:"+x) for x in EXPENSES], BACK_BUTTON]
     reply_markup = InlineKeyboardMarkup(keyboard)
     query.edit_message_text(
         text="{} selected".format(query.data),
@@ -44,9 +47,7 @@ def add_expense(update, context):
 def add_return(update, context):
     query = update.callback_query
     query.answer()
-    keyboard = [[InlineKeyboardButton("hi", callback_data="hi"),
-                 InlineKeyboardButton("bye", callback_data="bye")],
-                BACK_BUTTON]
+    keyboard = [[InlineKeyboardButton(x.split(":")[0], callback_data="return:"+x) for x in RETURNS], BACK_BUTTON]
     reply_markup = InlineKeyboardMarkup(keyboard)
     query.edit_message_text(
         text="{} selected".format(query.data),
@@ -58,9 +59,7 @@ def add_return(update, context):
 def add_recurring(update, context):
     query = update.callback_query
     query.answer()
-    keyboard = [[InlineKeyboardButton("hi", callback_data="hi"),
-                 InlineKeyboardButton("bye", callback_data="bye")],
-                BACK_BUTTON]
+    keyboard = [[InlineKeyboardButton(x.split(":")[0], callback_data="recurring:"+x) for x in RECURRING], BACK_BUTTON]
     reply_markup = InlineKeyboardMarkup(keyboard)
     query.edit_message_text(
         text="{} selected".format(query.data),
