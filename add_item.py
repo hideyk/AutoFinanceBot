@@ -12,12 +12,12 @@ EXIT_BUTTON = [InlineKeyboardButton("🔚", callback_data="exit")]
 
 
 def add_helper(update, context):
-    keyboard = [[KeyboardButton("💸", callback_data='💸:expense'),
+    keyboard = [[InlineKeyboardButton("💸", callback_data='💸:expense'),
                  InlineKeyboardButton("💰", callback_data='💰:return'),
                  InlineKeyboardButton("📆", callback_data='📆:recurring')],
                 EXIT_BUTTON
                 ]
-    reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
+    reply_markup = InlineKeyboardMarkup(keyboard, one_time_keyboard=True)
     if update.message:
         update.message.reply_text(
             "What shall we add today?",
@@ -25,10 +25,9 @@ def add_helper(update, context):
         )
     else:
         update.callback_query.edit_message_text(
-            text="Let's try this again",
+            text="What shall we do today?",
             reply_markup=reply_markup
         )
-    print("hi")
     return FIRST
 
 

@@ -1,4 +1,4 @@
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, replymarkup
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler, ConversationHandler
 from telegram.utils import helpers
 import configparser as cfg
@@ -39,17 +39,19 @@ def help_user(update, context):
     update.message.reply_text(value)
 
 
-def quote_of_the_day(update, context):
-    update.message.reply_text(QUOTE+"\n- "+QUOTER)
+# def quote_of_the_day(update, context):
+#     update.message.reply_text(QUOTE+"\n- "+QUOTER)
 
 
 def end_convo(update, context):
-    print("hi")
-    query = update.callback_query
-    query.answer()
-    query.edit_message_text(
-        text="Whenever you're ready!🙇‍♂️"
-    )
+    # if update.message:
+    #     update.message.reply_text(
+    #         text="Whenever you're ready!🙇‍♂️"
+    #     )
+    if not update.message:
+        update.callback_query.edit_message_text(
+            text="Whenever you're ready!🙇‍♂️\nAll current instances of /add exited."
+        )
     return ConversationHandler.END
 
 
@@ -58,8 +60,6 @@ def bao(update, context):
     update.message.reply_text("BAOOOOOOOOOOOO <3")
 
 
-
-QUOTE, QUOTER = get_qotd()
 # Stages
 FIRST, SECOND, THIRD, BACK = range(4)
 # Callback data
@@ -71,17 +71,17 @@ def main():
     add_handler = ConversationHandler(
         entry_points=[CommandHandler('add', add_helper)],
         states={
-            FIRST: [CallbackQueryHandler(add_expense, pattern="💸:expense$"),
-                    CallbackQueryHandler(add_return, pattern="💰:return$"),
-                    CallbackQueryHandler(add_recurring, pattern="📆:recurring$"),
+            FIRST: [CallbackQueryHandler(add_expense, pattern=".*expense$"),
+                    CallbackQueryHandler(add_return, pattern=".*return$"),
+                    CallbackQueryHandler(add_recurring, pattern=".*recurring$"),
                     CallbackQueryHandler(end_convo, pattern="exit$")],
             # FIRST: [CallbackQueryHandler(input_type, pattern='^' + str(ONE) + '$')]
             SECOND: [CallbackQueryHandler(add_helper, pattern="back$"),
                      CallbackQueryHandler(add_description, pattern="^expense"),
                      CallbackQueryHandler(add_description)]
         },
-        fallbacks=[CommandHandler('start', start)],
-        per_user=True
+        fallbacks=[MessageHandler(Filters.command, end_convo)],
+        allow_reentry=True
     )
 
     updater = get_updater()
@@ -89,9 +89,9 @@ def main():
 
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("help", help_user))
-    dp.add_handler(CommandHandler("qotd", quote_of_the_day))
+    # dp.add_handler(CommandHandler("qotd", quote_of_the_day))
     dp.add_handler(CommandHandler("bao", bao))
-    dp.add_handler(add_handler)
+    dp.add_handler(add_handler, 1)
     # dp.add_handler(CommandHandler("input", input_options))
     # dp.add_handler(CallbackQueryHandler(input_button))
     updater.start_polling()
