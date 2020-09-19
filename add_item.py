@@ -3,7 +3,7 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, ConversationHandl
 from emoji import emojize
 
 
-FIRST, SECOND = range(2)
+FIRST, SECOND, THIRD, VALUE = range(4)
 EXPENSES = ["🍕:fnb", "💕:date", "🚇:publictransport", "🚕:privatetransport", "🏠:housing", "🏖:travel", "🐶:pet"]
 RETURNS = ["📈:investment"]
 RECURRING = ["💵:income", "📱:phonebill"]
@@ -37,7 +37,7 @@ def add_expense(update, context):
     keyboard = [[InlineKeyboardButton(x.split(":")[0], callback_data="expense:"+x) for x in EXPENSES], BACK_BUTTON]
     reply_markup = InlineKeyboardMarkup(keyboard)
     query.edit_message_text(
-        text="{} selected".format(query.data),
+        text="{} selected. Select a sub-category.".format(query.data.split(":")[-1].capitalize()),
         reply_markup=reply_markup
     )
     return SECOND
@@ -49,7 +49,7 @@ def add_return(update, context):
     keyboard = [[InlineKeyboardButton(x.split(":")[0], callback_data="return:"+x) for x in RETURNS], BACK_BUTTON]
     reply_markup = InlineKeyboardMarkup(keyboard)
     query.edit_message_text(
-        text="{} selected".format(query.data),
+        text="{} selected. Select a sub-category.".format(query.data.split(":")[-1].capitalize()),
         reply_markup=reply_markup
     )
     return SECOND
@@ -61,12 +61,20 @@ def add_recurring(update, context):
     keyboard = [[InlineKeyboardButton(x.split(":")[0], callback_data="recurring:"+x) for x in RECURRING], BACK_BUTTON]
     reply_markup = InlineKeyboardMarkup(keyboard)
     query.edit_message_text(
-        text="{} selected".format(query.data),
+        text="{} selected. Select a sub-category.".format(query.data.split(":")[-1].capitalize()),
         reply_markup=reply_markup
     )
-    return SECOND
+    return VALUE
 
 
 def add_description(update, context):
     query = update.callback_query
     query.answer()
+    # keyboard = [[ReplyKeyboardButton]]
+    return THIRD
+
+
+def add_value(update, context):
+    query = update.callback_query
+    query.answer()
+    print("hi")

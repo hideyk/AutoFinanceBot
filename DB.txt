@@ -1,0 +1,30 @@
+# Expenses
+CREATE TABLE expenses (
+	ID int NOT NULL,
+	category varchar(255) NOT NULL,
+	description varchar(255) DEFAULT '',
+	created_dt date NOT NULL,
+	amount double(10,2) NOT NULL,
+	PRIMARY KEY (ID) 
+);
+
+# Income
+CREATE TABLE income (
+	ID int NOT NULL,
+	category varchar(255) NOT NULL,
+	description varchar(255) DEFAULT '',
+	created_dt date NOT NULL,
+	amount double(10,2) NOT NULL,
+	PRIMARY KEY (ID)  
+);
+
+#Recurring
+CREATE TABLE recurring (
+	ID int NOT NULL,
+	type varchar(255) NOT NULL
+	category varchar(255) NOT NULL,
+	description varchar(255) DEFAULT '',
+	created_dt date NOT NULL,
+	amount double(10,2) NOT NULL,
+	PRIMARY KEY (ID)
+);

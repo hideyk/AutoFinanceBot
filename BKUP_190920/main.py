@@ -1,10 +1,10 @@
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler, ConversationHandler
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler
 import configparser as cfg
-from add_item import add_helper, add_expense, add_return, add_recurring, add_description, add_value
+from BKUP_190920.add_item import add_helper, add_expense, add_return, add_recurring, add_value, \
+    EXPENSES, RETURNS, RECURRING
 
 
 import logging
-
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 
@@ -20,7 +20,6 @@ def get_updater():
 
 def start(update, context):
     user = update.message.from_user
-    id = update.message.from_user.id
     logger.info("User %s started the conversation.", user.first_name)
     msg = "Welcome to AutoFinance Bot, {}! 🌈⛈🎉🌹🐧😊\n\n".format(user['first_name'])
     msg += "AutoFinance Bot assists you with managing cash flow, helping you focus on a prudent & healthy " \
@@ -37,15 +36,12 @@ def help_user(update, context):
     update.message.reply_text(value)
 
 
+# def quote_of_the_day(update, context):
+#     update.message.reply_text(QUOTE+"\n- "+QUOTER)
+
+
 def end_convo(update, context):
-    if update.message:
-        update.message.reply_text(
-            text="Whenever you're ready!🙇‍♂️"
-        )
-    if not update.message:
-        update.callback_query.edit_message_text(
-            text="Whenever you're ready!🙇‍♂️\nAll previous instances of /add exited."
-        )
+    update.message.reply_text("Whenever you're ready!🙇‍♂️\nAll previous instances of /add exited.")
     return ConversationHandler.END
 
 
@@ -58,21 +54,29 @@ def bao(update, context):
 FIRST, SECOND, THIRD, BACK, VALUE = range(5)
 # Callback data
 ONE, TWO, THREE, FOUR = range(4)
-
-
+# EXPENSE_REGEX = "^(" + "|".join(EXPENSES) + ")$"
+# RETURN_REGEX = "^(" + "|".join(RETURNS) + ")$"
+# RECURRING_REGEX = "^(" + "|".join(RECURRING) + ")$"
+CAT_REGEX = "^(" + "|".join(EXPENSES) + "|" + "|".join(RETURNS) + "|" + "|".join(RECURRING) + ")$"
+print(CAT_REGEX)
 def main():
-
     add_handler = ConversationHandler(
         entry_points=[CommandHandler('add', add_helper)],
         states={
-            FIRST: [CallbackQueryHandler(add_expense, pattern=".*expense$"),
-                    CallbackQueryHandler(add_return, pattern=".*return$"),
-                    CallbackQueryHandler(add_recurring, pattern=".*recurring$"),
-                    CallbackQueryHandler(end_convo, pattern="exit$")],
+            FIRST: [MessageHandler(Filters.regex('^💸$'),
+                                   add_expense),
+                    MessageHandler(Filters.regex('^💰$'),
+                                   add_return),
+                    MessageHandler(Filters.regex('^📆$'),
+                                   add_recurring),
+                    MessageHandler(Filters.regex('^🔚$'),
+                                   end_convo)],
             # FIRST: [CallbackQueryHandler(input_type, pattern='^' + str(ONE) + '$')]
-            SECOND: [CallbackQueryHandler(add_helper, pattern="back$"),
-                     CallbackQueryHandler(add_description, pattern="^expense"),
-                     CallbackQueryHandler(add_description)],
+
+            SECOND: [MessageHandler(Filters.regex(CAT_REGEX),
+                                   add_value),
+                    MessageHandler(Filters.regex('^🔙$'),
+                                   add_helper)],
             VALUE: [MessageHandler(Filters.text, add_value)]
         },
         fallbacks=[MessageHandler(Filters.command, end_convo)],
