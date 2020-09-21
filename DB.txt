@@ -1,30 +1,43 @@
 # Expenses
 CREATE TABLE expenses (
-	ID int NOT NULL,
+    id int NOT NULL AUTO_INCREMENT,
+	userid int NOT NULL,
 	category varchar(255) NOT NULL,
 	description varchar(255) DEFAULT '',
 	created_dt date NOT NULL,
 	amount double(10,2) NOT NULL,
-	PRIMARY KEY (ID) 
+	PRIMARY KEY (id)
 );
 
 # Income
 CREATE TABLE income (
-	ID int NOT NULL,
+	id int NOT NULL AUTO_INCREMENT,
+	userid int NOT NULL,
 	category varchar(255) NOT NULL,
 	description varchar(255) DEFAULT '',
 	created_dt date NOT NULL,
 	amount double(10,2) NOT NULL,
-	PRIMARY KEY (ID)  
+	PRIMARY KEY (id)
 );
 
 #Recurring
 CREATE TABLE recurring (
-	ID int NOT NULL,
-	type varchar(255) NOT NULL
-	category varchar(255) NOT NULL,
-	description varchar(255) DEFAULT '',
-	created_dt date NOT NULL,
+	id int NOT NULL AUTO_INCREMENT,
+	userid int NOT NULL,
+	type varchar(255) NOT NULL,
+	schedule int NOT NULL,
+	description varchar(255) NOT NULL,
+	enabled bool NOT NULL DEFAULT true,
 	amount double(10,2) NOT NULL,
-	PRIMARY KEY (ID)
+	PRIMARY KEY (id)
 );
+
+
+INSERT INTO expenses (userid, category, description, created_dt, amount)
+VALUES (123124, 'food', 'pizza hut', '2020-09-19', 2.1);
+
+INSERT INTO income (userid, category, description, created_dt, amount)
+VALUES (123124, 'dividend', 'dbs', '2020-09-19', 2.1);
+
+INSERT INTO recurring (userid, type, schedule, description, amount)
+VALUES (123124, '+', 10, 'salary', 2.1);

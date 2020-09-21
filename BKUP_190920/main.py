@@ -1,14 +1,36 @@
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler, ConversationHandler
 import configparser as cfg
-from BKUP_190920.add_item import add_helper, add_expense, add_return, add_recurring, add_value, \
-    EXPENSES, RETURNS, RECURRING
-
+from BKUP_190920.add_item import add_helper, add_expense, add_return, add_recurring, \
+    add_description, save_descrip
 
 import logging
+
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 
 logger = logging.getLogger("AutoFinance Bot")
+
+
+END = ConversationHandler.END
+
+
+def stop(update, context):
+    """End Conversation by command."""
+    update.message.reply_text('Okay, bye.')
+
+    return END
+
+
+def end(update, context):
+    if update.message:
+        update.message.reply_text(
+            text="Whenever you're ready!🙇‍♂️"
+        )
+    if not update.message:
+        update.callback_query.edit_message_text(
+            text="Whenever you're ready!🙇‍♂️\nAll previous instances of /add exited."
+        )
+    return END
 
 
 def get_updater():
@@ -20,6 +42,7 @@ def get_updater():
 
 def start(update, context):
     user = update.message.from_user
+    id = update.message.from_user.id
     logger.info("User %s started the conversation.", user.first_name)
     msg = "Welcome to AutoFinance Bot, {}! 🌈⛈🎉🌹🐧😊\n\n".format(user['first_name'])
     msg += "AutoFinance Bot assists you with managing cash flow, helping you focus on a prudent & healthy " \
@@ -36,15 +59,6 @@ def help_user(update, context):
     update.message.reply_text(value)
 
 
-# def quote_of_the_day(update, context):
-#     update.message.reply_text(QUOTE+"\n- "+QUOTER)
-
-
-def end_convo(update, context):
-    update.message.reply_text("Whenever you're ready!🙇‍♂️\nAll previous instances of /add exited.")
-    return ConversationHandler.END
-
-
 def bao(update, context):
     user = update.message.from_user
     update.message.reply_text("BAOOOOOOOOOOOO <3")
@@ -52,34 +66,28 @@ def bao(update, context):
 
 # Stages
 FIRST, SECOND, THIRD, BACK, VALUE = range(5)
+EXPENSETYPE, DESCRIPTION, TYPING = "", "", ""
 # Callback data
 ONE, TWO, THREE, FOUR = range(4)
-# EXPENSE_REGEX = "^(" + "|".join(EXPENSES) + ")$"
-# RETURN_REGEX = "^(" + "|".join(RETURNS) + ")$"
-# RECURRING_REGEX = "^(" + "|".join(RECURRING) + ")$"
-CAT_REGEX = "^(" + "|".join(EXPENSES) + "|" + "|".join(RETURNS) + "|" + "|".join(RECURRING) + ")$"
-print(CAT_REGEX)
+
 def main():
+
+    selection_handler = [
+        CallbackQueryHandler(add_helper, pattern="back$"),
+        CallbackQueryHandler(add_description, pattern='^expense|^return')
+    ]
     add_handler = ConversationHandler(
         entry_points=[CommandHandler('add', add_helper)],
         states={
-            FIRST: [MessageHandler(Filters.regex('^💸$'),
-                                   add_expense),
-                    MessageHandler(Filters.regex('^💰$'),
-                                   add_return),
-                    MessageHandler(Filters.regex('^📆$'),
-                                   add_recurring),
-                    MessageHandler(Filters.regex('^🔚$'),
-                                   end_convo)],
-            # FIRST: [CallbackQueryHandler(input_type, pattern='^' + str(ONE) + '$')]
-
-            SECOND: [MessageHandler(Filters.regex(CAT_REGEX),
-                                   add_value),
-                    MessageHandler(Filters.regex('^🔙$'),
-                                   add_helper)],
-            VALUE: [MessageHandler(Filters.text, add_value)]
+            EXPENSETYPE: [CallbackQueryHandler(add_expense, pattern="^expense$"),
+                        CallbackQueryHandler(add_return, pattern="^return$"),
+                        CallbackQueryHandler(add_recurring, pattern="^recurring$"),
+                       CallbackQueryHandler(end, pattern="^exit$")],
+            DESCRIPTION: selection_handler,
+            TYPING: [MessageHandler(Filters.text & ~Filters.command, save_descrip)]
         },
-        fallbacks=[MessageHandler(Filters.command, end_convo)],
+        fallbacks=[MessageHandler(Filters.command, end),
+                   CommandHandler('stop', stop)],
         allow_reentry=True,
         per_user=True
     )
@@ -89,7 +97,6 @@ def main():
 
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler("help", help_user))
-    # dp.add_handler(CommandHandler("qotd", quote_of_the_day))
     dp.add_handler(CommandHandler("bao", bao))
     dp.add_handler(add_handler, 1)
     updater.start_polling()

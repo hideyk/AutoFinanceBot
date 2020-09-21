@@ -25,4 +25,18 @@
 - Category:string
 - Description:string
 - Schedule:int(0:daily | 1-7:weekly | 8.9.10: monthly)
+- Enabled:bool(default:True)
 - Amount:float
+
+<h4>DB API</h4>
+- Insert
+    - Expense
+    - Income
+    - Recurring
+- Delete
+    - Expense
+    - Income
+    - Recurring
+- Update
+    - Disable recurring
+    - Update recurring
