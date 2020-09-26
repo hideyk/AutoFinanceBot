@@ -1,26 +1,33 @@
 import MySQLdb
+import configparser as cfg
 
-HOST="autofinancebot.mysql.pythonanywhere-services.com"
-USER="autofinancebot"
-PASSWD="Openshift!7"
-DATABASE="autofinancebot$autofinance"
+config = cfg.ConfigParser()
+config.read("config.cfg")
+HOST = config.get("creds", "HOST")
+USER = config.get("creds", "USER")
+PASSWD = config.get("creds", "PASSWD")
+DATABASE = config.get("creds", "DATABASE")
 
 # db.query("""SELECT * FROM expenses""")
 # r = db.store_result()
 # result = r.fetch_row(maxrows=0)
 
-db = MySQLdb.connect(host=HOST, user=USER, passwd=PASSWD, db=DATABASE)
-c = db.cursor()
+try:
+    db = MySQLdb.connect(host=HOST, user=USER, passwd=PASSWD, db=DATABASE)
+    c = db.cursor()
+except:
+    print("Can't connect to DB")
+    exit()
 
 
-def insertExpense(userid, category, desc, created_dt, amount):
+def insertExpense(userid, category, amount, desc, created_dt):
     query = "INSERT INTO expenses (userid, category, description, created_dt, amount) " \
             "VALUES (%s, '%s', '%s', '%s', %s);" % (int(userid), category, desc, created_dt, float(amount))
     c.execute(query)
     db.commit()
 
 
-def insertIncome(userid, category, desc, created_dt, amount):
+def insertIncome(userid, category, amount, desc, created_dt):
     query = "INSERT INTO income (userid, category, description, created_dt, amount) " \
             "VALUES (%s, '%s', '%s', '%s', %s);" % (int(userid), category, desc, created_dt, float(amount))
     c.execute(query)
