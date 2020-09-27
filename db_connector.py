@@ -13,10 +13,15 @@ DATABASE = config.get("creds", "DATABASE")
 # result = r.fetch_row(maxrows=0)
 
 try:
+    print(HOST)
+    print(USER)
+    print(PASSWD)
+    print(DATABASE)
     db = MySQLdb.connect(host=HOST, user=USER, passwd=PASSWD, db=DATABASE)
     c = db.cursor()
-except:
+except Exception as e:
     print("Can't connect to DB")
+    print(e)
     exit()
 
 

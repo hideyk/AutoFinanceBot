@@ -29,9 +29,9 @@ def runcommand(method_name, msg):
 
 user_dict = {}
 ADDOPTIONS = [ "Expense 💸:exp", "Income 💰:inc", "Recurring 📆:rec" ]
-EXPENSES = ["🍕:dining", "💕:dates", "🚇:public transport", "🚕:private transport", "🏠:housing", "🏖:travel"]
-INCOMES = [ "💵:income", "📈:investment", "🎁:bonus", "💎:commission" ]
-PLUS_MINUS = [ "🔼:plus", "🔽:minus" ]
+EXPENSES = ["Dining 🍕:dining", "Dates 💕:dates", "Public transport🚇:public transport", "Private transport 🚕:private transport", "Housing 🏠:housing", "Travel 🏖:travel"]
+INCOMES = [ "Income 💵:income", "Investment 📈:investment", "Bonus 🎁:bonus", "Commission 💎:commission" ]
+PLUS_MINUS = [ "Cash flow in 🔼:plus", "Cash flow out🔽:minus" ]
 RECURRING_MINUS = [ "Housing 🏠:housing", "Income 💵:income", "Bills 📱:bills", "Subscriptions 📦:subscriptions", "Insurance 🩹:insurance" ]
 RECURRING_PLUS = [ "Income 💵:income" ]
 SCHEDULES = [ "Daily:sched_daily", "Weekly:sched_weekly", "Monthly:sched_monthly"]
@@ -50,13 +50,13 @@ add_markup = InlineKeyboardMarkup()
 add_markup.row_width = 1
 add_markup.add(*add_buttons)
 exp_markup = InlineKeyboardMarkup()
-exp_markup.row_width = 3
+exp_markup.row_width = 2
 exp_markup.add(*expense_buttons)
 inc_markup = InlineKeyboardMarkup()
 inc_markup.row_width = 2
 inc_markup.add(*income_buttons)
 plusminus_markup = InlineKeyboardMarkup()
-plusminus_markup.row_width = 2
+plusminus_markup.row_width = 1
 plusminus_markup.add(*plusminus_buttons)
 recminus_markup = InlineKeyboardMarkup()
 recminus_markup.row_width = 2
@@ -254,7 +254,8 @@ def process_date(call):
     bot.edit_message_text(chat_id=call.message.chat.id,
                           text="{} selected.".format(chosendt),
                           message_id=call.message.message_id)
-    bot.send_message(call.message.chat.id, text="Confirm entry?", reply_markup=confirm_markup)
+    msg = bot.send_message(call.message.chat.id, text="Confirm entry?", reply_markup=confirm_markup)
+    user_dict[call.message.chat.id]["lastAdd"] = msg.message_id
 
 
 @bot.callback_query_handler(lambda query: query.data in [ "confirm_yes", "confirm_no" ])
@@ -267,18 +268,21 @@ def confirm_entry(call):
             amount = user_dict[call.message.chat.id]["amount"]
             desc = user_dict[call.message.chat.id]["desc"]
             datetime = user_dict[call.message.chat.id]["datetime"]
+            cleandt = datetime.strftime("%Y-%m-%d")
+            print(category, amount, desc, datetime)
             insertType = "Expense"
-            '''
-            if input_type == "exp":
-                insertExpense(call.message.chat.id, category, amount, desc, datetime)
-                insertType = "Expense"
-            else:
-                insertIncome(call.message.chat.id, category, amount, desc, datetime)
-                insertType = "Income"
-            '''
+            #
+            # if input_type == "exp":
+            #     insertExpense(call.message.chat.id, category, amount, desc, cleandt)
+            #     insertType = "Expense"
+            # else:
+            #     insertIncome(call.message.chat.id, category, amount, desc, cleandt)
+            #     insertType = "Income"
+
             final_msg = f"*[{insertType} successfully added]*\n" \
                         f"Category:       {category.capitalize()}\n" \
-                        f"Amount:         ${amount:.2f}"
+                        f"Amount:         ${amount:.2f}\n" \
+                        f"Add another entry? /add"
             bot.answer_callback_query(callback_query_id=call.id,
                                       show_alert=True,
                                       text="Entry successfully entered.")
@@ -286,6 +290,7 @@ def confirm_entry(call):
                                   message_id=call.message.message_id,
                                   text=final_msg,
                                   parse_mode=telegram.ParseMode.MARKDOWN)
+            user_dict[call.message.chat.id] = {}
             print("Inserted\n"
                   "Category: ", category,
                   "\nAmount: ", str(amount),
