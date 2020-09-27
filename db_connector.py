@@ -47,3 +47,32 @@ insertIncome("43", "gym", "tamp fitness", "2020-09-19", "2.50")
 insertIncome("43", "gym", "tamp fitness", "2020-09-19", "2.50")
 insertRecurring("43", "+", "3", "membership", "2.50")
 insertRecurring("43", "-", "7", "salary", "3750")
+
+'''
+INSERT INTO expenses (userid, category, description, created_dt, amount)
+VALUES (123124, 'food', 'pizza hut', '2020-09-19', 2.1);
+'''
+
+'''
+Adhoc
+- Credit card
+- Medical services
+- Education
+- Investment
+- Charity
++ Bonus
++ Commission
++ Interest
++ Rebate
++ Refund
+
+- Rent
+- Subscriptions
+- Bills
+- Education
+- Insurance
+- Charity
+- Tax (Road/Income/Property)
++ Income
++ 
+'''

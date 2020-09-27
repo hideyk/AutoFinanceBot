@@ -16,7 +16,7 @@ commands = {  # command description used in the "help" command
     '/help'        : 'Gives you information about the available commands',
     '/sendLongText': 'A test using the \'send_chat_action\' command',
     '/getImage'    : 'A test using multi-stage messages, custom keyboard, and media sending',
-    '/add'         : 'message_handler'
+    '/add'         : 'add_handler'
 }
 
 def runcommand(method_name, msg):
@@ -28,19 +28,26 @@ def runcommand(method_name, msg):
     method(msg)
 
 user_dict = {}
-ADDOPTIONS = [ "💸:exp", "💰:inc", "📆:rec" ]
-EXPENSES = ["🍕:fnb", "💕:dates", "🚇:public transport", "🚕:private transport", "🏠:housing", "🏖:travel", "🐶:pets"]
-INCOMES = [ "💵:income", "📈:investment" ]
-RECURRING = [ "💵:income", "📱:phone bill" ]
+ADDOPTIONS = [ "Expense 💸:exp", "Income 💰:inc", "Recurring 📆:rec" ]
+EXPENSES = ["🍕:dining", "💕:dates", "🚇:public transport", "🚕:private transport", "🏠:housing", "🏖:travel"]
+INCOMES = [ "💵:income", "📈:investment", "🎁:bonus", "💎:commission" ]
+PLUS_MINUS = [ "🔼:plus", "🔽:minus" ]
+RECURRING_MINUS = [ "Housing 🏠:housing", "Income 💵:income", "Bills 📱:bills", "Subscriptions 📦:subscriptions", "Insurance 🩹:insurance" ]
+RECURRING_PLUS = [ "Income 💵:income" ]
+SCHEDULES = [ "Daily:sched_daily", "Weekly:sched_weekly", "Monthly:sched_monthly"]
 DATEOPTIONS = [ "Today:tdy_date", "Yesterday:yst_date", "Custom date 📆:custdate" ]
 CONFIRMOPTIONS = [ "Yes ✔:confirm_yes", "No ❌:confirm_no", "Back 🔙:confirm_back" ]
 add_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in ADDOPTIONS]
 expense_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="2exp:"+x.split(":")[1]) for x in EXPENSES]
 income_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="2inc:"+x.split(":")[1]) for x in INCOMES]
+plusminus_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="2rec:"+x.split(":")[1]) for x in PLUS_MINUS]
+recminus_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="3rec:"+x.split(":")[1]) for x in RECURRING_MINUS]
+recplus_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="3rec:"+x.split(":")[1]) for x in RECURRING_PLUS]
+sched_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in SCHEDULES]
 date_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in DATEOPTIONS]
 confirm_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in CONFIRMOPTIONS]
 add_markup = InlineKeyboardMarkup()
-add_markup.row_width = 3
+add_markup.row_width = 1
 add_markup.add(*add_buttons)
 exp_markup = InlineKeyboardMarkup()
 exp_markup.row_width = 3
@@ -48,6 +55,18 @@ exp_markup.add(*expense_buttons)
 inc_markup = InlineKeyboardMarkup()
 inc_markup.row_width = 2
 inc_markup.add(*income_buttons)
+plusminus_markup = InlineKeyboardMarkup()
+plusminus_markup.row_width = 2
+plusminus_markup.add(*plusminus_buttons)
+recminus_markup = InlineKeyboardMarkup()
+recminus_markup.row_width = 2
+recminus_markup.add(*recminus_buttons)
+recplus_markup = InlineKeyboardMarkup()
+recplus_markup.row_width = 2
+recplus_markup.add(*recplus_buttons)
+sched_markup = InlineKeyboardMarkup()
+sched_markup.row_width = 1
+sched_markup.add(*sched_buttons)
 date_markup = InlineKeyboardMarkup()
 date_markup.row_width = 2
 date_markup.add(*date_buttons)
@@ -73,17 +92,20 @@ def send_welcome(message):
 
 
 @bot.message_handler(commands=['add'])
-def message_handler(message):
-    try:
-        msg = bot.send_message(message.chat.id, 'What shall we add sir?', reply_markup=add_markup)
-    except Exception as e:
-        pass
+def add_handler(message):
+    if message.chat.id not in user_dict.keys():
+        user_dict[message.chat.id] = {}
+    if "lastAdd" in user_dict[message.chat.id].keys():
+        bot.edit_message_text(chat_id=message.chat.id,
+                              text="New instance of /add started.",
+                              message_id=user_dict[message.chat.id]["lastAdd"])
+    msg = bot.send_message(message.chat.id, 'What shall we add sir?', reply_markup=add_markup)
+    user_dict[message.chat.id]["lastAdd"] = msg.message_id
 
 
 @bot.callback_query_handler(lambda query: query.data == "exp" or query.data.startswith("2exp"))
-def handle_query(call):
+def expense_query(call):
     if call.data.startswith("exp"):
-        user_dict[call.message.chat.id] = {}
         user_dict[call.message.chat.id]["type"] = "exp"
         bot.edit_message_text(chat_id=call.message.chat.id,
                               text="Please select an expense type.",
@@ -96,14 +118,13 @@ def handle_query(call):
                               message_id=call.message.message_id)
         user_dict[call.message.chat.id]["category"] = category
         msg = bot.send_message(call.message.chat.id, text="Please enter an amount.")
-        user_dict[call.message.chat.id]["last"] = msg.message_id
-        bot.register_next_step_handler(msg, process_value)
+        user_dict[call.message.chat.id]["lastAdd"] = msg.message_id
+        bot.register_next_step_handler(msg, process_amount)
 
 
 @bot.callback_query_handler(lambda query: query.data == "inc" or query.data.startswith("2inc"))
-def handle_query(call):
+def income_query(call):
     if call.data.startswith("inc"):
-        user_dict[call.message.chat.id] = {}
         user_dict[call.message.chat.id]["type"] = "inc"
         bot.edit_message_text(chat_id=call.message.chat.id,
                               text="Please select an income type.",
@@ -116,29 +137,83 @@ def handle_query(call):
                               message_id=call.message.message_id)
         user_dict[call.message.chat.id]["category"] = category
         msg = bot.send_message(call.message.chat.id, text="Please enter an amount.")
-        user_dict[call.message.chat.id]["last"] = msg.message_id
-        bot.register_next_step_handler(msg, process_value)
+        user_dict[call.message.chat.id]["lastAdd"] = msg.message_id
+        bot.register_next_step_handler(msg, process_amount)
 
 
-def process_value(message):
+@bot.callback_query_handler(lambda query: query.data == "rec" or query.data.startswith("2rec") or query.data.startswith("3rec"))
+def recurring_query(call):
+    if call.data.startswith("rec"):
+        user_dict[call.message.chat.id]["type"] = "rec"
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              text="Please select a recurring type.",
+                              message_id=call.message.message_id,
+                              reply_markup=plusminus_markup)
+    if call.data.startswith("2rec"):
+        sign = call.data.split(":")[-1]
+        cashflow = "+" if sign.endswith("plus") else "-"
+        flow = "Cash flow in" if sign.endswith("plus") else "Cash flow out"
+        rec_markup = recplus_markup if sign.endswith("plus") else recminus_markup
+        user_dict[call.message.chat.id]["cashflow"] = cashflow
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              text="{} selected.\n"
+                                   "Please select a category.".format(flow),
+                              message_id=call.message.message_id,
+                              reply_markup=rec_markup)
+    if call.data.startswith("3rec"):
+        category = call.data.split(":")[-1]
+        user_dict[call.message.chat.id]["category"] = category
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              text="{} selected.\n"
+                                   "Please select a schedule.".format(category.capitalize()),
+                              message_id=call.message.message_id,
+                              reply_markup=sched_markup)
+        # msg = bot.edit_message_text(chat_id=call.message.chat.id,
+        #                       text="{} selected.\n"
+        #                            "Please select a schedule.".format(category.capitalize()),
+        #                       message_id=call.message.message_id,
+        #                       reply_markup=sched_markup)
+        # bot.register_next_step_handler(msg, process_schedule)
+
+
+@bot.callback_query_handler(lambda query: query.data.startswith("sched"))
+def process_schedule(call):
+    schedule = call.data.split("_")[-1]
+    print(schedule)
+    if schedule == "daily":
+        pass
+    elif schedule == "weekly":
+        pass
+    elif schedule == "monthly":
+        pass
+    bot.edit_message_text(chat_id=call.message.chat.id,
+                          text="{} schedule selected".format(schedule.capitalize()),
+                          message_id=call.message.message_id)
+    user_dict[call.message.chat.id]["schedule"] = schedule
+    msg = bot.send_message(call.message.chat.id, text="Please enter an amount.")
+    user_dict[call.message.chat.id]["lastAdd"] = msg.message_id
+    bot.register_next_step_handler(msg, process_amount)
+
+
+def process_amount(message):
     amount = message.text
     if amount in commands.keys():
         runcommand(commands[amount], message)
         return
     if not isValidCurrency(amount):
         msg = bot.edit_message_text(chat_id=message.chat.id,
-                                    message_id=user_dict[message.chat.id]["last"],
+                                    message_id=user_dict[message.chat.id]["lastAdd"],
                                     text=f"Value should be between 0.01 and 1000000.\n"
                                         f"Invalid value: {amount}\n"
                                         f"Please try again: ")
-        bot.register_next_step_handler(msg, process_value)
+        bot.register_next_step_handler(msg, process_amount)
         return
     bot.edit_message_text(chat_id=message.chat.id,
-                          message_id=user_dict[message.chat.id]["last"],
+                          message_id=user_dict[message.chat.id]["lastAdd"],
                           text=f"Valid amount: ${float(amount):.2f}")
     user_dict[message.chat.id]["amount"] = float(amount)
     msg = bot.send_message(message.chat.id, text="Please enter a description.")
-    user_dict[message.chat.id]["last"] = msg.message_id
+    user_dict[message.chat.id]["lastAdd"] = msg.message_id
     bot.register_next_step_handler(msg, process_description)
 
 
@@ -149,13 +224,13 @@ def process_description(message):
         return
     if len(description) >= 50:
         msg = bot.edit_message_text(chat_id=message.chat.id,
-                                    message_id=user_dict[message.chat.id]["last"],
+                                    message_id=user_dict[message.chat.id]["lastAdd"],
                                     text=f"Description too long: {description}\n"
                                          f"Please try again with less than 50 characters: ")
         bot.register_next_step_handler(msg, process_description)
         return
     bot.edit_message_text(chat_id=message.chat.id,
-                          message_id=user_dict[message.chat.id]["last"],
+                          message_id=user_dict[message.chat.id]["lastAdd"],
                           text=f"Description: {description}")
     user_dict[message.chat.id]["desc"] = description
     bot.send_message(message.chat.id, text="Select a date", reply_markup=date_markup)
@@ -170,7 +245,6 @@ def process_date(call):
                               reply_markup=date_markup)
         return
     now = dt.now()
-
     if call.data == "yst_date":
         now -= timedelta(days=1)
     if call.data == "custdate":
@@ -212,6 +286,11 @@ def confirm_entry(call):
                                   message_id=call.message.message_id,
                                   text=final_msg,
                                   parse_mode=telegram.ParseMode.MARKDOWN)
+            print("Inserted\n"
+                  "Category: ", category,
+                  "\nAmount: ", str(amount),
+                  "\nDesc: ", desc,
+                  "\nDatetime: ", datetime)
             return
         elif input_type == "rec":
             pass
@@ -223,7 +302,8 @@ def confirm_entry(call):
 
     elif confirm == "confirm_no":
         bot.edit_message_text(chat_id=call.message.chat.id,
-                              text="Entry not added.",
+                              text="Entry not added.\n"
+                                   "Whenever you're ready!🙇‍♂",
                               message_id=call.message.message_id)
         return
 
