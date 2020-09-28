@@ -331,7 +331,7 @@ markup = types.InlineKeyboardMarkup()
         assert ret_msg.message_id 
 '''
 
-bot.polling(none_stop=True)
+# bot.polling(none_stop=True)
 
 server = Flask(__name__)
 @server.route('/' + api_token, methods=['POST'])
