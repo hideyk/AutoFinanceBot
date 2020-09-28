@@ -343,7 +343,7 @@ def getMessage():
 @server.route("/")
 def webhook():
     bot.remove_webhook()
-    bot.set_webhook(url='https://your_heroku_project.com/' + api_token)
+    bot.set_webhook(url='https://secure-mountain-19020.herokuapp.com/' + api_token)
     return "!", 200
 
 
