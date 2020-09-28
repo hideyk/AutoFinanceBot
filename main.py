@@ -7,10 +7,10 @@ import telegram
 from flask import Flask, request
 import os
 
-config = cfg.ConfigParser()
-config.read("config.cfg")
-api_token = config.get("creds", "token")
-
+# config = cfg.ConfigParser()
+# config.read("config.cfg")
+# api_token = config.get("creds", "token")
+api_token = "1205348824:AAEEseJMg68aU9cAkGd2JJDLE_RtVdGmDHY"
 bot = telebot.TeleBot(api_token, parse_mode=None)
 
 commands = {  # command description used in the "help" command
