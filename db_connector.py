@@ -3,20 +3,20 @@ import configparser as cfg
 
 config = cfg.ConfigParser()
 config.read("config.cfg")
-HOST = config.get("creds", "HOST")
-USER = config.get("creds", "USER")
-PASSWD = config.get("creds", "PASSWD")
-DATABASE = config.get("creds", "DATABASE")
+# HOST = config.get("creds", "HOST")
+# USER = config.get("creds", "USER")
+# PASSWD = config.get("creds", "PASSWD")
+# DATABASE = config.get("creds", "DATABASE")
+HOST = "sql103.epizy.com"
+DATABASE = "epiz_26838099_autofinancebot"
+USER = "epiz_26838099"
+PASSWD = "Physicsmath!7"
 
 # db.query("""SELECT * FROM expenses""")
 # r = db.store_result()
 # result = r.fetch_row(maxrows=0)
 
 try:
-    print(HOST)
-    print(USER)
-    print(PASSWD)
-    print(DATABASE)
     db = MySQLdb.connect(host=HOST, user=USER, passwd=PASSWD, db=DATABASE)
     c = db.cursor()
 except Exception as e:
@@ -45,14 +45,16 @@ def insertRecurring(userid, type, sched, desc, amount):
     c.execute(query)
     db.commit()
 
-
-insertExpense("43", "gym", "tamp fitness", "2020-09-19", "2.50")
-insertExpense("43", "gym", "tamp fitness", "2020-09-19", "2.50")
-insertIncome("43", "gym", "tamp fitness", "2020-09-19", "2.50")
-insertIncome("43", "gym", "tamp fitness", "2020-09-19", "2.50")
-insertRecurring("43", "+", "3", "membership", "2.50")
-insertRecurring("43", "-", "7", "salary", "3750")
-
+try:
+    insertExpense("43", "gym", "tamp fitness", "2020-09-19", "2.50")
+    insertExpense("43", "gym", "tamp fitness", "2020-09-19", "2.50")
+    insertIncome("43", "gym", "tamp fitness", "2020-09-19", "2.50")
+    insertIncome("43", "gym", "tamp fitness", "2020-09-19", "2.50")
+    insertRecurring("43", "+", "3", "membership", "2.50")
+    insertRecurring("43", "-", "7", "salary", "3750")
+except Exception as e:
+    print("Unable to insert")
+    print(e)
 '''
 INSERT INTO expenses (userid, category, description, created_dt, amount)
 VALUES (123124, 'food', 'pizza hut', '2020-09-19', 2.1);
