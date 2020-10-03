@@ -283,8 +283,8 @@ def confirm_entry(call):
 
             final_msg = f"*[{insertType} successfully added]*\n" \
                         f"Category:       {category.capitalize()}\n" \
-                        f"Amount:         ${amount:.2f}\n\n" \
-                        f"/add another entry?"
+                        f"Amount:         ${amount:.2f}\n" \
+                        f"Add another entry? /add"
             bot.answer_callback_query(callback_query_id=call.id,
                                       show_alert=True,
                                       text="Entry successfully entered.")
@@ -331,21 +331,21 @@ markup = types.InlineKeyboardMarkup()
         assert ret_msg.message_id 
 '''
 
-bot.polling(none_stop=True)
+# bot.polling(none_stop=True)
 
-# server = Flask(__name__)
-# @server.route('/' + api_token, methods=['POST'])
-# def getMessage():
-#     bot.process_new_updates([telebot.types.Update.de_json(request.stream.read().decode("utf-8"))])
-#     return "!", 200
-#
-#
-# @server.route("/")
-# def webhook():
-#     bot.remove_webhook()
-#     bot.set_webhook(url='https://secure-mountain-19020.herokuapp.com/' + api_token)
-#     return "!", 200
-#
-#
-# if __name__ == "__main__":
-#     server.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
+server = Flask(__name__)
+@server.route('/' + api_token, methods=['POST'])
+def getMessage():
+    bot.process_new_updates([telebot.types.Update.de_json(request.stream.read().decode("utf-8"))])
+    return "!", 200
+
+
+@server.route("/")
+def webhook():
+    bot.remove_webhook()
+    bot.set_webhook(url='https://secure-mountain-19020.herokuapp.com/' + api_token)
+    return "!", 200
+
+
+if __name__ == "__main__":
+    server.run(host="0.0.0.0", port=int(os.environ.get('PORT', 5000)))
