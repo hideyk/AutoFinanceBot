@@ -12,7 +12,6 @@ idna==2.10
 itsdangerous==1.1.0
 Jinja2==2.11.2
 MarkupSafe==1.1.1
-mysqlclient @ file:///D:/Downloads/mysqlclient-1.4.6-cp38-cp38-win32.whl
 pycparser==2.20
 pyTelegramBotAPI==3.7.3
 python-telegram-bot==12.8
