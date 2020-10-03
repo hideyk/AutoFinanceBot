@@ -3,14 +3,19 @@ import configparser as cfg
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 # from db_connector import insertExpense, insertIncome, insertRecurring
+from pg_connector import insertExpense, insertIncome
+import telegramcalendar
 import telegram
 from flask import Flask, request
 import os
 
-# config = cfg.ConfigParser()
-# config.read("config.cfg")
-# api_token = config.get("creds", "token")
-api_token = "1205348824:AAEEseJMg68aU9cAkGd2JJDLE_RtVdGmDHY"
+try:
+    api_token = os.environ['TG_API_TOKEN']
+except Exception as e:
+    config = cfg.ConfigParser()
+    config.read("config.cfg")
+    api_token = config.get("creds", "token")
+
 bot = telebot.TeleBot(api_token, parse_mode=None)
 
 commands = {  # command description used in the "help" command
@@ -30,14 +35,14 @@ def runcommand(method_name, msg):
     method(msg)
 
 user_dict = {}
-ADDOPTIONS = [ "Expense 💸:exp", "Income 💰:inc", "Recurring 📆:rec" ]
+ADDOPTIONS = [ "Expense 💸:expense", "Income 💰:income", "Recurring 📆:recurring" ]
 EXPENSES = ["Dining 🍕:dining", "Dates 💕:dates", "Public transport🚇:public transport", "Private transport 🚕:private transport", "Housing 🏠:housing", "Travel 🏖:travel"]
 INCOMES = [ "Income 💵:income", "Investment 📈:investment", "Bonus 🎁:bonus", "Commission 💎:commission" ]
 PLUS_MINUS = [ "Cash flow in 🔼:plus", "Cash flow out🔽:minus" ]
 RECURRING_MINUS = [ "Housing 🏠:housing", "Income 💵:income", "Bills 📱:bills", "Subscriptions 📦:subscriptions", "Insurance 🩹:insurance" ]
 RECURRING_PLUS = [ "Income 💵:income" ]
 SCHEDULES = [ "Daily:sched_daily", "Weekly:sched_weekly", "Monthly:sched_monthly"]
-DATEOPTIONS = [ "Today:tdy_date", "Yesterday:yst_date", "Custom date 📆:custdate" ]
+DATEOPTIONS = [ "Today:tdy_date", "Yesterday:yst_date", "Custom date 📆:custom_calendar" ]
 CONFIRMOPTIONS = [ "Yes ✔:confirm_yes", "No ❌:confirm_no", "Back 🔙:confirm_back" ]
 add_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in ADDOPTIONS]
 expense_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="2exp:"+x.split(":")[1]) for x in EXPENSES]
@@ -77,6 +82,17 @@ confirm_markup.row_width = 2
 confirm_markup.add(*confirm_buttons)
 
 
+def confirmMessage(call):
+    amount = user_dict[call.message.chat.id]['amount']
+    datetime = user_dict[call.message.chat.id]['datetime']
+    return "*[Confirm entry]*\n" \
+              f"Type:              _{user_dict[call.message.chat.id]['type'].capitalize()}_\n" \
+              f"Category:      _{user_dict[call.message.chat.id]['category'].capitalize()}_\n" \
+              f"Amount:        _${amount:.2f}_\n" \
+              f"Description:   _{user_dict[call.message.chat.id]['desc']}_\n" \
+              f"Date:                _{datetime.strftime('%a, %d %b %Y')}_\n"
+
+
 def isValidCurrency(s):
     try:
         a = float(s)
@@ -85,12 +101,20 @@ def isValidCurrency(s):
         return False
 
 
+def monthDelta(sourcedate, months):
+    month = sourcedate.month - 1 + months
+    year = sourcedate.year + month // 12
+    month = month % 12 + 1
+    return month, year
+
+
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     msg = "Welcome to AutoFinance Bot, {}! 🌈⛈🎉🌹🐧😊\n\n".format(message.chat.first_name)
     msg += "AutoFinance Bot assists you with managing cash flow, helping you focus on a prudent & healthy " \
            "lifestyle 💰💰💰\n\n"
-    bot.reply_to(message, msg)
+    msg += ""
+    bot.send_message(message.chat.id, msg)
 
 
 @bot.message_handler(commands=['add'])
@@ -105,10 +129,10 @@ def add_handler(message):
     user_dict[message.chat.id]["lastAdd"] = msg.message_id
 
 
-@bot.callback_query_handler(lambda query: query.data == "exp" or query.data.startswith("2exp"))
+@bot.callback_query_handler(lambda query: query.data == "expense" or query.data.startswith("2exp"))
 def expense_query(call):
     if call.data.startswith("exp"):
-        user_dict[call.message.chat.id]["type"] = "exp"
+        user_dict[call.message.chat.id]["type"] = "expense"
         bot.edit_message_text(chat_id=call.message.chat.id,
                               text="Please select an expense type.",
                               message_id=call.message.message_id,
@@ -124,10 +148,10 @@ def expense_query(call):
         bot.register_next_step_handler(msg, process_amount)
 
 
-@bot.callback_query_handler(lambda query: query.data == "inc" or query.data.startswith("2inc"))
+@bot.callback_query_handler(lambda query: query.data == "income" or query.data.startswith("2inc"))
 def income_query(call):
     if call.data.startswith("inc"):
-        user_dict[call.message.chat.id]["type"] = "inc"
+        user_dict[call.message.chat.id]["type"] = "income"
         bot.edit_message_text(chat_id=call.message.chat.id,
                               text="Please select an income type.",
                               message_id=call.message.message_id,
@@ -143,10 +167,10 @@ def income_query(call):
         bot.register_next_step_handler(msg, process_amount)
 
 
-@bot.callback_query_handler(lambda query: query.data == "rec" or query.data.startswith("2rec") or query.data.startswith("3rec"))
+@bot.callback_query_handler(lambda query: query.data == "recurring" or query.data.startswith("2rec") or query.data.startswith("3rec"))
 def recurring_query(call):
     if call.data.startswith("rec"):
-        user_dict[call.message.chat.id]["type"] = "rec"
+        user_dict[call.message.chat.id]["type"] = "recurring"
         bot.edit_message_text(chat_id=call.message.chat.id,
                               text="Please select a recurring type.",
                               message_id=call.message.message_id,
@@ -181,7 +205,6 @@ def recurring_query(call):
 @bot.callback_query_handler(lambda query: query.data.startswith("sched"))
 def process_schedule(call):
     schedule = call.data.split("_")[-1]
-    print(schedule)
     if schedule == "daily":
         pass
     elif schedule == "weekly":
@@ -238,7 +261,7 @@ def process_description(message):
     bot.send_message(message.chat.id, text="Select a date", reply_markup=date_markup)
 
 
-@bot.callback_query_handler(lambda query: query.data.endswith("date") or query.data == "confirm_back")
+@bot.callback_query_handler(lambda query: query.data.endswith("date") or query.data == "confirm_back" or query.data == "custom_calendar")
 def process_date(call):
     if call.data == "confirm_back":
         bot.edit_message_text(chat_id=call.message.chat.id,
@@ -249,15 +272,72 @@ def process_date(call):
     now = dt.now()
     if call.data == "yst_date":
         now -= timedelta(days=1)
-    if call.data == "custdate":
-        pass
-    user_dict[call.message.chat.id]["datetime"] = now
-    chosendt = now.strftime("%a, %d %b %Y")
-    bot.edit_message_text(chat_id=call.message.chat.id,
-                          text="{} selected.".format(chosendt),
-                          message_id=call.message.message_id)
-    msg = bot.send_message(call.message.chat.id, text="Confirm entry?", reply_markup=confirm_markup)
-    user_dict[call.message.chat.id]["lastAdd"] = msg.message_id
+    if call.data.endswith("date"):
+        user_dict[call.message.chat.id]["datetime"] = now
+        chosendt = now.strftime("%a, %d %b %Y")
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              text="{} selected.".format(chosendt),
+                              message_id=call.message.message_id)
+
+        msg = bot.send_message(call.message.chat.id,
+                               text=confirmMessage(call),
+                               reply_markup=confirm_markup,
+                               parse_mode=telegram.ParseMode.MARKDOWN)
+        user_dict[call.message.chat.id]["lastAdd"] = msg.message_id
+    elif call.data == "custom_calendar":
+        nice_date = now.strftime("%B %Y")
+        reply_text = f"     *{nice_date}*     "
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              text=reply_text,
+                              message_id=call.message.message_id,
+                              reply_markup=telegramcalendar.create_calendar(),
+                              parse_mode=telegram.ParseMode.MARKDOWN
+                              )
+
+
+@bot.callback_query_handler(lambda query: query.data.startswith("IGNORE") or query.data.startswith("DAY") or query.data.startswith("PREV-MONTH") or query.data.startswith("NEXT-MONTH"))
+def process_calendar_selection(call):
+    query = call.data
+    (action, year, month, day) = telegramcalendar.separate_callback_data(query)
+    curr = dt(int(year), int(month), 1)
+    if action == "IGNORE":
+        bot.answer_callback_query(callback_query_id=call.id)
+    elif action == "DAY":
+        chosen_date = dt(year=int(year), month=int(month), day=int(day))
+        user_dict[call.message.chat.id]["datetime"] = chosen_date
+        chosendt = chosen_date.strftime("%a, %d %b %Y")
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              text="{} selected.".format(chosendt),
+                              message_id=call.message.message_id)
+        msg = bot.send_message(call.message.chat.id,
+                               text=confirmMessage(call),
+                               reply_markup=confirm_markup,
+                               parse_mode=telegram.ParseMode.MARKDOWN)
+        user_dict[call.message.chat.id]["lastAdd"] = msg.message_id
+    elif action == "PREV-MONTH":
+        premonth, preyear = monthDelta(curr, -1)
+        curdate = dt(year=preyear, month=premonth, day=1)
+        nice_date = curdate.strftime("%B %Y")
+        reply_text = f"     *{nice_date}*     "
+        bot.edit_message_text(
+            text=reply_text,
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            reply_markup=telegramcalendar.create_calendar(int(preyear),int(premonth)),
+            parse_mode=telegram.ParseMode.MARKDOWN
+        )
+    elif action == "NEXT-MONTH":
+        nextmonth, nextyear = monthDelta(curr, 1)
+        curdate = dt(year=nextyear, month=nextmonth, day=1)
+        nice_date = curdate.strftime("%B %Y")
+        reply_text = f"     *{nice_date}*     "
+        bot.edit_message_text(
+            text=reply_text,
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            reply_markup=telegramcalendar.create_calendar(int(nextyear),int(nextmonth)),
+            parse_mode=telegram.ParseMode.MARKDOWN
+        )
 
 
 @bot.callback_query_handler(lambda query: query.data in [ "confirm_yes", "confirm_no" ])
@@ -265,15 +345,13 @@ def confirm_entry(call):
     confirm = call.data
     if confirm == "confirm_yes":
         input_type = user_dict[call.message.chat.id]["type"]
-        if input_type == "exp" or input_type == "inc":
+        if input_type == "expense" or input_type == "income":
             category = user_dict[call.message.chat.id]["category"]
             amount = user_dict[call.message.chat.id]["amount"]
             desc = user_dict[call.message.chat.id]["desc"]
             datetime = user_dict[call.message.chat.id]["datetime"]
             cleandt = datetime.strftime("%Y-%m-%d")
-            print(category, amount, desc, datetime)
             insertType = "Expense"
-            #
             # if input_type == "exp":
             #     insertExpense(call.message.chat.id, category, amount, desc, cleandt)
             #     insertType = "Expense"
@@ -293,13 +371,9 @@ def confirm_entry(call):
                                   text=final_msg,
                                   parse_mode=telegram.ParseMode.MARKDOWN)
             user_dict[call.message.chat.id] = {}
-            print("Inserted\n"
-                  "Category: ", category,
-                  "\nAmount: ", str(amount),
-                  "\nDesc: ", desc,
-                  "\nDatetime: ", datetime)
+
             return
-        elif input_type == "rec":
+        elif input_type == "recurring":
             pass
         '''
         {137906605: {'category': 'fnb', 'value': '3', 'descript': 'jk',
@@ -313,6 +387,12 @@ def confirm_entry(call):
                                    "Whenever you're ready!🙇‍♂",
                               message_id=call.message.message_id)
         return
+
+
+'''
+- Include an EXPORT function!
+
+'''
 
 '''
 For final input into DB

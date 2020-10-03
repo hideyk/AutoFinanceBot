@@ -3,14 +3,10 @@ import configparser as cfg
 
 config = cfg.ConfigParser()
 config.read("config.cfg")
-# HOST = config.get("creds", "HOST")
-# USER = config.get("creds", "USER")
-# PASSWD = config.get("creds", "PASSWD")
-# DATABASE = config.get("creds", "DATABASE")
-HOST = "sql103.epizy.com"
-DATABASE = "epiz_26838099_autofinancebot"
-USER = "epiz_26838099"
-PASSWD = "Physicsmath!7"
+HOST = config.get("creds", "HOST")
+USER = config.get("creds", "USER")
+PASSWD = config.get("creds", "PASSWD")
+DATABASE = config.get("creds", "DATABASE")
 
 # db.query("""SELECT * FROM expenses""")
 # r = db.store_result()

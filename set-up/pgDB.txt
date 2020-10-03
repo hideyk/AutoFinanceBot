@@ -1,0 +1,42 @@
+# Expenses
+CREATE TABLE expenses (
+    id SERIAL PRIMARY KEY,
+	userid int NOT NULL,
+	category varchar(255) NOT NULL,
+	description varchar(255) DEFAULT '',
+	amount MONEY NOT NULL,
+	created_dt date NOT NULL
+);
+
+# Income
+CREATE TABLE income (
+	id SERIAL PRIMARY KEY,
+	userid int NOT NULL,
+	category varchar(255) NOT NULL,
+	description varchar(255) DEFAULT '',
+	amount MONEY NOT NULL,
+	created_dt date NOT NULL
+);
+
+#Recurring
+CREATE TABLE recurring (
+	id SERIAL PRIMARY KEY,
+	userid int NOT NULL,
+	type varchar(255) NOT NULL,
+	schedule int NOT NULL,
+	description varchar(255) NOT NULL,
+	enabled bool NOT NULL DEFAULT true,
+	amount MONEY NOT NULL
+);
+
+
+INSERT INTO expenses (userid, category, description, amount, created_dt)
+VALUES (123124, 'food', 'pizza hut', 2.1, '2020-09-19');
+
+INSERT INTO income (userid, category, description, amount, created_dt)
+VALUES (123124, 'dividend', 'dbs', 2.1, '2020-09-19');
+
+INSERT INTO recurring (userid, type, schedule, description, amount)
+VALUES (123124, '+', 10, 'salary', 2.1);
+
+#heroku pg:psql postgresql-metric-50747 --app autofinance-bot
