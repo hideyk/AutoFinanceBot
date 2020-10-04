@@ -6,7 +6,6 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from pg_connector import insertExpense, insertIncome
 import telegramcalendar
 import telegram
-from flask import Flask, request
 import os
 
 # try:
