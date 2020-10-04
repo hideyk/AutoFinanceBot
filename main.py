@@ -3,7 +3,7 @@ import configparser as cfg
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 # from db_connector import insertExpense, insertIncome, insertRecurring
-from pg_connector import insertExpense, insertIncome
+# from pg_connector import insertExpense, insertIncome
 import telegramcalendar
 import telegram
 from flask import Flask, request
