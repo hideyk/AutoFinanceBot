@@ -150,6 +150,7 @@ def show_menu(message):
     msg = bot.send_message(message.chat.id, text, reply_markup=show_markup)
     user_dict[message.chat.id]["lastShow"] = msg.message_id
 
+
 @bot.callback_query_handler(lambda query: query.data == "show_summary")
 def show_summary(call):
     user_dict[call.message.chat.id]["show_type"] = "show_summary"
@@ -396,7 +397,7 @@ def confirm_entry(call):
             datetime = user_dict[call.message.chat.id]["datetime"]
             cleandt = datetime.strftime("%Y-%m-%d")
             insertType = "Expense"
-            if input_type == "exp":
+            if input_type == "expense":
                 insertExpense(call.message.chat.id, category, amount, desc, cleandt)
                 insertType = "Expense"
             else:

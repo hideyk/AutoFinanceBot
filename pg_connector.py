@@ -10,23 +10,27 @@ def insertExpense(userid, category, amount, desc, created_dt):
                 DATABASE_URL,
                 sslmode='require'
             )
-        except:
+        except Exception as e:
+            print("cant connect to heroku postgres")
             conn = pg.connect(
                 host="localhost",
                 database="autofinance-bot",
                 user="postgres",
                 password="hideyuki1994"
             )
+
         query = "INSERT INTO expenses (userid, category, description, created_dt, amount) " \
                 "VALUES (%s, '%s', '%s', '%s', %s);" % (int(userid), category, desc, created_dt, float(amount))
+        print(query)
         cur = conn.cursor()
         cur.execute(query)
         conn.commit()
         cur.close()
         conn.close()
     except Exception as e:
-        print("Insert failed")
         print(e)
+        print("Insert failed")
+
 
 def insertIncome(userid, category, amount, desc, created_dt):
     # conn = pg.connect(
@@ -48,4 +52,5 @@ def insertIncome(userid, category, amount, desc, created_dt):
         cur.close()
         conn.close()
     except Exception as e:
+        print(e)
         print("Insert failed")
