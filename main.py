@@ -3,7 +3,7 @@ import configparser as cfg
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 # from db_connector import insertExpense, insertIncome, insertRecurring
-# from pg_connector import insertExpense, insertIncome
+from pg_connector import insertExpense, insertIncome
 import telegramcalendar
 import telegram
 from flask import Flask, request
@@ -21,9 +21,9 @@ bot = telebot.TeleBot(api_token, parse_mode=None)
 commands = {  # command description used in the "help" command
     '/start'       : 'send_welcome',
     '/help'        : 'Gives you information about the available commands',
-    '/sendLongText': 'A test using the \'send_chat_action\' command',
-    '/getImage'    : 'A test using multi-stage messages, custom keyboard, and media sending',
-    '/add'         : 'add_handler'
+    '/add'         : 'add_handler',
+    '/info'        : 'bot_info',
+    '/show'        : 'show_menu'
 }
 
 def runcommand(method_name, msg):
@@ -36,7 +36,8 @@ def runcommand(method_name, msg):
 
 user_dict = {}
 ADDOPTIONS = [ "Expense 💸:expense", "Income 💰:income", "Recurring 📆:recurring" ]
-EXPENSES = ["Dining 🍕:dining", "Dates 💕:dates", "Public transport🚇:public transport", "Private transport 🚕:private transport", "Housing 🏠:housing", "Travel 🏖:travel"]
+EXPENSES = ["Dining 🍕:dining", "Dates 💕:dates", "Public transport🚇:public transport",
+            "Private transport 🚕:private transport", "Housing 🏠:housing", "Travel 🏖:travel"]
 INCOMES = [ "Income 💵:income", "Investment 📈:investment", "Bonus 🎁:bonus", "Commission 💎:commission" ]
 PLUS_MINUS = [ "Cash flow in 🔼:plus", "Cash flow out🔽:minus" ]
 RECURRING_MINUS = [ "Housing 🏠:housing", "Income 💵:income", "Bills 📱:bills", "Subscriptions 📦:subscriptions", "Insurance 🩹:insurance" ]
@@ -44,6 +45,9 @@ RECURRING_PLUS = [ "Income 💵:income" ]
 SCHEDULES = [ "Daily:sched_daily", "Weekly:sched_weekly", "Monthly:sched_monthly"]
 DATEOPTIONS = [ "Today:tdy_date", "Yesterday:yst_date", "Custom date 📆:custom_calendar" ]
 CONFIRMOPTIONS = [ "Yes ✔:confirm_yes", "No ❌:confirm_no", "Back 🔙:confirm_back" ]
+SHOWOPTIONS = [ "Summary 📊:show_summary", "List 📋:show_list", "Exit:exit" ]
+SUMMARYOPTIONS = [ "By day:summary_day", "By month:summary_month", "By year:summary_year" ]
+RECORDLISTOPTIONS = [ "By day:list_day" ]
 add_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in ADDOPTIONS]
 expense_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="2exp:"+x.split(":")[1]) for x in EXPENSES]
 income_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="2inc:"+x.split(":")[1]) for x in INCOMES]
@@ -53,6 +57,9 @@ recplus_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="3rec:"+x
 sched_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in SCHEDULES]
 date_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in DATEOPTIONS]
 confirm_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in CONFIRMOPTIONS]
+show_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in SHOWOPTIONS]
+summary_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in SUMMARYOPTIONS]
+record_list_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in RECORDLISTOPTIONS]
 add_markup = InlineKeyboardMarkup()
 add_markup.row_width = 1
 add_markup.add(*add_buttons)
@@ -80,16 +87,25 @@ date_markup.add(*date_buttons)
 confirm_markup = InlineKeyboardMarkup()
 confirm_markup.row_width = 2
 confirm_markup.add(*confirm_buttons)
+show_markup = InlineKeyboardMarkup()
+show_markup.row_width = 2
+show_markup.add(*show_buttons)
+summary_markup = InlineKeyboardMarkup()
+summary_markup.row_width = 1
+summary_markup.add(*summary_buttons)
+record_list_markup = InlineKeyboardMarkup()
+record_list_markup.row_width = 1
+record_list_markup.add(*record_list_buttons)
 
 
 def confirmMessage(call):
     amount = user_dict[call.message.chat.id]['amount']
     datetime = user_dict[call.message.chat.id]['datetime']
     return "*[Confirm entry]*\n" \
-              f"Type:              _{user_dict[call.message.chat.id]['type'].capitalize()}_\n" \
-              f"Category:      _{user_dict[call.message.chat.id]['category'].capitalize()}_\n" \
-              f"Amount:        _${amount:.2f}_\n" \
-              f"Description:   _{user_dict[call.message.chat.id]['desc']}_\n" \
+              f"Type:                _{user_dict[call.message.chat.id]['type'].capitalize()}_\n" \
+              f"Category:        _{user_dict[call.message.chat.id]['category'].capitalize()}_\n" \
+              f"Amount:          _${amount:.2f}_\n" \
+              f"Description:    _{user_dict[call.message.chat.id]['desc']}_\n" \
               f"Date:                _{datetime.strftime('%a, %d %b %Y')}_\n"
 
 
@@ -115,6 +131,40 @@ def send_welcome(message):
            "lifestyle 💰💰💰\n\n"
     msg += ""
     bot.send_message(message.chat.id, msg)
+
+
+@bot.message_handler(commands=['help'])
+def send_welcome(message):
+    msg = "Hey {}! 😊\n\n".format(message.chat.first_name)
+    msg += "All the commands you need can be found here: "
+    msg += "/add Add a new expense or income"
+    msg += "/start Describes the bot"
+    bot.send_message(message.chat.id, msg)
+
+
+@bot.message_handler(commands=['show'])
+def show_menu(message):
+    if message.chat.id not in user_dict.keys():
+        user_dict[message.chat.id] = {}
+    text = "Hey {}! 😊\n\n".format(message.chat.first_name)
+    msg = bot.send_message(message.chat.id, text, reply_markup=show_markup)
+    user_dict[message.chat.id]["lastShow"] = msg.message_id
+
+@bot.callback_query_handler(lambda query: query.data == "show_summary")
+def show_summary(call):
+    user_dict[call.message.chat.id]["show_type"] = "show_summary"
+    text = "*[Summary]*\n\n" \
+           "Please select the time range of your summary!\n"
+    bot.edit_message_text(chat_id=call.message.chat.id,
+                          text=text,
+                          message_id=call.message.message_id,
+                          reply_markup=summary_markup,
+                          parse_mode=telegram.ParseMode.MARKDOWN
+                          )
+
+
+# @bot.callback_query_handler(lambda query: query.data == "show_list")
+# def show_list(call):
 
 
 @bot.message_handler(commands=['add'])
@@ -194,12 +244,6 @@ def recurring_query(call):
                                    "Please select a schedule.".format(category.capitalize()),
                               message_id=call.message.message_id,
                               reply_markup=sched_markup)
-        # msg = bot.edit_message_text(chat_id=call.message.chat.id,
-        #                       text="{} selected.\n"
-        #                            "Please select a schedule.".format(category.capitalize()),
-        #                       message_id=call.message.message_id,
-        #                       reply_markup=sched_markup)
-        # bot.register_next_step_handler(msg, process_schedule)
 
 
 @bot.callback_query_handler(lambda query: query.data.startswith("sched"))
@@ -352,12 +396,12 @@ def confirm_entry(call):
             datetime = user_dict[call.message.chat.id]["datetime"]
             cleandt = datetime.strftime("%Y-%m-%d")
             insertType = "Expense"
-            # if input_type == "exp":
-            #     insertExpense(call.message.chat.id, category, amount, desc, cleandt)
-            #     insertType = "Expense"
-            # else:
-            #     insertIncome(call.message.chat.id, category, amount, desc, cleandt)
-            #     insertType = "Income"
+            if input_type == "exp":
+                insertExpense(call.message.chat.id, category, amount, desc, cleandt)
+                insertType = "Expense"
+            else:
+                insertIncome(call.message.chat.id, category, amount, desc, cleandt)
+                insertType = "Income"
 
             final_msg = f"*[{insertType} successfully added]*\n" \
                         f"Category:       {category.capitalize()}\n" \

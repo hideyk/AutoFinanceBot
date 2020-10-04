@@ -20,13 +20,18 @@ def separate_callback_data(data):
     return data.split(";")
 
 
+def is_present_month(cur_year, cur_month, year, month):
+    return cur_year == year and cur_month == month
+
+
 def create_calendar(year=None,month=None):
     now = datetime.datetime.now()
+    curDay, curMonth, curYear = now.day, now.month, now.year
     if year == None: year = now.year
     if month == None: month = now.month
     data_ignore = create_callback_data("IGNORE", year, month, 0)
     keyboard = []
-
+    present_month = is_present_month(curYear, curMonth, year, month)
     #Second row - Week Days
     for day in ["Mo","Tu","We","Th","Fr","Sa","Su"]:
         keyboard.append(InlineKeyboardButton(day,callback_data=data_ignore))
@@ -36,6 +41,8 @@ def create_calendar(year=None,month=None):
         for day in week:
             if(day==0):
                 keyboard.append(InlineKeyboardButton(" ",callback_data=data_ignore))
+            elif day == curDay and present_month:
+                keyboard.append(InlineKeyboardButton("*" + str(day) + "*",callback_data=create_callback_data("DAY",year,month,day)))
             else:
                 keyboard.append(InlineKeyboardButton(str(day),callback_data=create_callback_data("DAY",year,month,day)))
 
