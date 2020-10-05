@@ -8,14 +8,14 @@ import telegramcalendar
 import telegram
 import os
 
-# try:
-#     api_token = os.environ['TG_API_TOKEN']
-# except Exception as e:
-#     config = cfg.ConfigParser()
-#     config.read("config.cfg")
-#     api_token = config.get("creds", "token")
-api_token = "1205348824:AAEEseJMg68aU9cAkGd2JJDLE_RtVdGmDHY"
+try:
+    api_token = os.environ['TG_API_TOKEN']
+except Exception as e:
+    config = cfg.ConfigParser()
+    config.read("config.cfg")
+    api_token = config.get("creds", "token")
 bot = telebot.TeleBot(api_token, parse_mode=None)
+
 
 commands = {  # command description used in the "help" command
     '/start'       : 'send_welcome',

@@ -40,3 +40,7 @@ INSERT INTO recurring (userid, type, schedule, description, amount)
 VALUES (123124, '+', 10, 'salary', 2.1);
 
 #heroku pg:psql postgresql-metric-50747 --app autofinance-bot
+
+
+SELECT COALESCE(sum(amount), '$0') AS amount
+FROM expenses WHERE description='d'
