@@ -44,3 +44,11 @@ VALUES (123124, '+', 10, 'salary', 2.1);
 
 SELECT COALESCE(sum(amount), '$0') AS amount
 FROM expenses WHERE description='d'
+
+
+SELECT SUM(amount) as total, category FROM expenses WHERE userid=137906605 AND created_dt='2020-10-05' GROUP BY category;
+SELECT SUM(amount) as total FROM expenses WHERE userid=137906605 AND created_dt='2020-10-05';
+SELECT * FROM expenses;
+SELECT SUM(amount) as total, category FROM expenses WHERE userid=137906605 AND created_dt >= '2020-10-01' AND created_dt < '2020-11-01' GROUP BY category;
+
+SELECT amount FROM expenses WHERE category LIKE 'a%'
