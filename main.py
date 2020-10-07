@@ -3,7 +3,7 @@ import configparser as cfg
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 # from db_connector import insertExpense, insertIncome, insertRecurring
-from pg_connector import insertExpense, insertIncome, showListDay, showSummaryDay
+from pg_connector import insertExpense, insertIncome, showListDay, getDaySummary, getMonthSummary
 import telegramcalendar
 import telegram
 import os
@@ -47,6 +47,7 @@ CONFIRMOPTIONS = [ "Yes ✔:confirm_yes", "No ❌:confirm_no", "Back 🔙:confir
 SHOWOPTIONS = [ "Summary 📊:show_summary", "List 📋:show_list", "Exit:exit" ]
 SUMMARYOPTIONS = [ "Daily:summary_day", "Weekly:summary_week", "Monthly:summary_month" ]
 SUMMARYDAYOPTIONS = [ "Select a different date:summary_day", "Done:exit" ]
+SUMMARYMONTHOPTIONS = [ "Select a different month:summary_month", "Done:exit" ]
 RECORDLISTOPTIONS = [ "By day:list_day" ]
 DAYLISTOPTIONS = [ "Select a different date:list_day", "Done:exit" ]
 add_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in ADDOPTIONS]
@@ -61,6 +62,7 @@ confirm_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split("
 show_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in SHOWOPTIONS]
 summary_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in SUMMARYOPTIONS]
 summary_day_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in SUMMARYDAYOPTIONS]
+summary_month_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in SUMMARYMONTHOPTIONS]
 record_list_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in RECORDLISTOPTIONS]
 day_list_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in DAYLISTOPTIONS]
 add_markup = InlineKeyboardMarkup()
@@ -99,6 +101,9 @@ summary_markup.add(*summary_buttons)
 summary_day_markup = InlineKeyboardMarkup()
 summary_day_markup.row_width = 1
 summary_day_markup.add(*summary_day_buttons)
+summary_month_markup = InlineKeyboardMarkup()
+summary_month_markup.row_width = 1
+summary_month_markup.add(*summary_month_buttons)
 record_list_markup = InlineKeyboardMarkup()
 record_list_markup.row_width = 1
 record_list_markup.add(*record_list_buttons)
@@ -141,6 +146,30 @@ def createDaySummary(date, chosen_day_result, prev_day_result):
         message += f"This is a *{percentChange:.0f}% {change}* from the previous day - ${prevSum}\n"
     message += "\n"
     for record in chosen_day_result:
+        message += f"Category: {record['category']} - {record['total']}\n"
+    return message
+
+
+def createMonthSummary(year, month, chosen_month_result, prev_month_result):
+    chosenSum, prevSum, percentChange = 0.0, 0.0, 0.0
+    change = ""
+    date = dt(year=year, month=month, day=1)
+    for record in chosen_month_result:
+        chosenSum += float(record['total'][1:])
+    for record in prev_month_result:
+        prevSum += float(record['total'][1:])
+    if chosenSum and prevSum:
+        percentChange = (chosenSum - prevSum)/prevSum * 100
+    if percentChange > 0:
+        change = "increase"
+    elif percentChange < 0:
+        change = "decrease"
+    message = f"*[{date.strftime('%b %Y')}]*\n\n"
+    message += f"Total spent: *${chosenSum}*\n"
+    if percentChange:
+        message += f"This is a *{percentChange:.0f}% {change}* from the previous month - ${prevSum}\n"
+    message += "\n"
+    for record in chosen_month_result:
         message += f"Category: {record['category']} - {record['total']}\n"
     return message
 
@@ -477,7 +506,7 @@ def process_calendar(call):
                                reply_markup=day_list_markup,
                                parse_mode=telegram.ParseMode.MARKDOWN)
     if selected and prev_action == "summary_day":
-        chosenDayResult, prevDayResult = showSummaryDay(call.message.chat.id, getdbdate(date))
+        chosenDayResult, prevDayResult = getDaySummary(call.message.chat.id, getdbdate(date))
         reply_text = createDaySummary(date, chosenDayResult, prevDayResult)
         bot.send_message(call.message.chat.id,
                          text=reply_text,
@@ -490,11 +519,12 @@ def process_calendar(call):
 def process_calendar(call):
     selected, year, month, prev_action = telegramcalendar.process_month_selection(bot, call, user_dict)
     if selected and prev_action == "summary_month":
+        chosenMonthResult, prevMonthResult = getMonthSummary(call.message.chat.id, year, month)
+        reply_text = createMonthSummary(year, month, chosenMonthResult, prevMonthResult)
         msg = bot.send_message(call.message.chat.id,
-                               text=createConfirmMessage(call),
-                               reply_markup=confirm_markup,
+                               text=reply_text,
+                               reply_markup=summary_month_markup,
                                parse_mode=telegram.ParseMode.MARKDOWN)
-        user_dict[call.message.chat.id]["lastAdd"] = msg.message_id
 
 
 @bot.callback_query_handler(lambda query: query.data in [ "confirm_yes", "confirm_no" ])

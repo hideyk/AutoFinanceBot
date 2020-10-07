@@ -96,7 +96,7 @@ def showListDay(userid, created_dt):
         print(e)
 
 
-def showSummaryDay(userid, created_dt):
+def getDaySummary(userid, created_dt):
     try:
         DATABASE_URL = os.environ['DATABASE_URL']
         conn = pg.connect(
@@ -126,5 +126,49 @@ def showSummaryDay(userid, created_dt):
         if prevDayRes[0]['total'] is None:
             prevDayRes = []
         return chosenDayRes, prevDayRes
+    except Exception as e:
+        print(e)
+
+
+def getMonthSummary(userid, year, month):
+    prevYear, nextYear = year, year
+    prevMonth, nextMonth = month - 1, month + 1
+    if month == 12:
+        nextYear = year + 1
+        nextMonth = 1
+    if month == 1:
+        prevYear = year - 1
+        prevMonth = 12
+    current = dt(year=year, month=month, day=1)
+    prev = dt(year=prevYear, month=prevMonth, day=1)
+    next = dt(year=nextYear, month=nextMonth, day=1)
+    try:
+        DATABASE_URL = os.environ['DATABASE_URL']
+        conn = pg.connect(
+            DATABASE_URL,
+            sslmode='require'
+        )
+    except Exception as e:
+        conn = pg.connect(
+            host=HOST,
+            database=DATABASE,
+            user=USER,
+            password=PASSWORD
+        )
+    try:
+        conn.set_session(autocommit=True)
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""SELECT SUM(amount) as total, category FROM expenses 
+            WHERE userid=%s AND created_dt >= %s AND created_dt < %s 
+            GROUP BY category;""", (userid, current.strftime("%Y-%m-%d"), next.strftime("%Y-%m-%d")))
+            chosenMonthRes = cur.fetchall()
+            cur.execute("""SELECT SUM(amount) as total, category FROM expenses 
+                        WHERE userid=%s AND created_dt >= %s AND created_dt < %s 
+                        GROUP BY category;""", (userid, prev.strftime("%Y-%m-%d"), current.strftime("%Y-%m-%d")))
+            prevMonthRes = cur.fetchall()
+        conn.close()
+        # if prevMonthRes[0]['total'] is None:
+        #     prevDayRes = []
+        return chosenMonthRes, prevMonthRes
     except Exception as e:
         print(e)
