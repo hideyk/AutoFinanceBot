@@ -131,9 +131,9 @@ def createDaySummary(date, chosen_day_result, prev_day_result):
     chosenSum, prevSum, percentChange = 0.0, 0.0, 0.0
     change = ""
     for record in chosen_day_result:
-        chosenSum += float(record['total'][1:])
+        chosenSum += float(record['total'][1:].replace(",", ""))
     for record in prev_day_result:
-        prevSum += float(record['total'][1:])
+        prevSum += float(record['total'][1:].replace(",", ""))
     if chosenSum and prevSum:
         percentChange = (chosenSum - prevSum)/prevSum * 100
     if percentChange > 0:
@@ -155,9 +155,9 @@ def createMonthSummary(year, month, chosen_month_result, prev_month_result):
     change = ""
     date = dt(year=year, month=month, day=1)
     for record in chosen_month_result:
-        chosenSum += float(record['total'][1:])
+        chosenSum += float(record['total'][1:].replace(",", ""))
     for record in prev_month_result:
-        prevSum += float(record['total'][1:])
+        prevSum += float(record['total'][1:].replace(",", ""))
     if chosenSum and prevSum:
         percentChange = (chosenSum - prevSum)/prevSum * 100
     if percentChange > 0:
