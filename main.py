@@ -1,8 +1,7 @@
 from datetime import datetime as dt, timedelta
 import configparser as cfg
 import telebot
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-# from db_connector import insertExpense, insertIncome, insertRecurring
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
 from pg_connector import insertExpense, insertIncome, showListDay, getDaySummary, getMonthSummary
 from misc import telegramcalendar
 import telegram
@@ -32,6 +31,80 @@ def runcommand(method_name, msg):
     if not method:
          raise NotImplementedError("Method %s not implemented" % method_name)
     method(msg)
+
+
+def createDayListMessage(date, db_day_results):
+    message = f"*[{prettydate(date)}]*\n\n"
+    if db_day_results:
+        print(db_day_results)
+        for record in db_day_results:
+            message += "```\n" \
+                       f"{record['category'].capitalize()}\n" \
+                       f"                       {record['amount']}\n" \
+                       f"{record['description'].capitalize()}\n\n" \
+                       "```"
+    else:
+        message += "No records found on this day."
+    return message
+
+
+def createDaySummary(date, chosen_day_result, prev_day_result):
+    chosenSum, prevSum, percentChange = 0.0, 0.0, 0.0
+    change = ""
+    for record in chosen_day_result:
+        chosenSum += float(record['total'][1:].replace(",", ""))
+    for record in prev_day_result:
+        prevSum += float(record['total'][1:].replace(",", ""))
+    if chosenSum and prevSum:
+        percentChange = (chosenSum - prevSum)/prevSum * 100
+    if percentChange > 0:
+        change = "increase"
+    elif percentChange < 0:
+        change = "decrease"
+    message = f"*[{prettydate(date)}]*\n\n"
+    message += f"Total spent: *${chosenSum}*\n"
+    if percentChange:
+        message += f"This is a *{abs(percentChange):.1f}% {change}* from the previous day - ${prevSum}\n"
+    message += "\n"
+    for record in chosen_day_result:
+        message += f"Category: {record['category']} - {record['total']}\n"
+    return message
+
+
+def createMonthSummary(year, month, chosen_month_result, prev_month_result):
+    chosenSum, prevSum, percentChange = 0.0, 0.0, 0.0
+    change = ""
+    date = dt(year=year, month=month, day=1)
+    for record in chosen_month_result:
+        chosenSum += float(record['total'][1:].replace(",", ""))
+    for record in prev_month_result:
+        prevSum += float(record['total'][1:].replace(",", ""))
+    if chosenSum and prevSum:
+        percentChange = (chosenSum - prevSum)/prevSum * 100
+    if percentChange > 0:
+        change = "increase"
+    elif percentChange < 0:
+        change = "decrease"
+    message = f"*[{date.strftime('%b %Y')}]*\n\n"
+    message += f"Total spent: *${chosenSum}*\n"
+    if percentChange:
+        message += f"This is a *{abs(percentChange):.1f}% {change}* from the previous month - ${prevSum}\n"
+    message += "\n"
+    for record in chosen_month_result:
+        message += f"Category: {record['category']} - {record['total']}\n"
+    return message
+
+
+def createConfirmMessage(call):
+    amount = user_dict[call.message.chat.id]['amount']
+    datetime = user_dict[call.message.chat.id]['datetime']
+    return "*[Confirm entry]*\n" \
+              f"Type:                _{user_dict[call.message.chat.id]['type'].capitalize()}_\n" \
+              f"Category:        _{user_dict[call.message.chat.id]['category'].capitalize()}_\n" \
+              f"Amount:          _${amount:.2f}_\n" \
+              f"Description:    _{user_dict[call.message.chat.id]['desc']}_\n" \
+              f"Date:                _{prettydate(datetime)}_\n"
+
 
 user_dict = {}
 ADDOPTIONS = [ "Expense 💸:expense", "Income 💰:income", "Recurring 📆:recurring", "Exit:exit" ]
@@ -115,79 +188,12 @@ record_list_markup.add(*record_list_buttons)
 day_list_markup = InlineKeyboardMarkup()
 day_list_markup.row_width = 1
 day_list_markup.add(*day_list_buttons)
+STARTMENUOPTIONS = [ "Add Entry 🖋", "Show Records 📊", "FAQ ❓", "Give Feedback 📣" ]
+start_menu_buttons = [KeyboardButton(x) for x in STARTMENUOPTIONS]
+start_menu = ReplyKeyboardMarkup(one_time_keyboard=True)
+start_menu.row(start_menu_buttons[0], start_menu_buttons[1])
+start_menu.row(start_menu_buttons[2], start_menu_buttons[3])
 
-
-def createDayListMessage(date, db_day_results):
-    message = f"*[{prettydate(date)}]*\n\n"
-    if db_day_results:
-        print(db_day_results)
-        for record in db_day_results:
-            message += "```\n" \
-                       f"{record['category'].capitalize()}\n" \
-                       f"                       {record['amount']}\n" \
-                       f"{record['description'].capitalize()}\n\n" \
-                       "```"
-    else:
-        message += "No records found on this day."
-    return message
-
-
-def createDaySummary(date, chosen_day_result, prev_day_result):
-    chosenSum, prevSum, percentChange = 0.0, 0.0, 0.0
-    change = ""
-    for record in chosen_day_result:
-        chosenSum += float(record['total'][1:].replace(",", ""))
-    for record in prev_day_result:
-        prevSum += float(record['total'][1:].replace(",", ""))
-    if chosenSum and prevSum:
-        percentChange = (chosenSum - prevSum)/prevSum * 100
-    if percentChange > 0:
-        change = "increase"
-    elif percentChange < 0:
-        change = "decrease"
-    message = f"*[{prettydate(date)}]*\n\n"
-    message += f"Total spent: *${chosenSum}*\n"
-    if percentChange:
-        message += f"This is a *{abs(percentChange):.1f}% {change}* from the previous day - ${prevSum}\n"
-    message += "\n"
-    for record in chosen_day_result:
-        message += f"Category: {record['category']} - {record['total']}\n"
-    return message
-
-
-def createMonthSummary(year, month, chosen_month_result, prev_month_result):
-    chosenSum, prevSum, percentChange = 0.0, 0.0, 0.0
-    change = ""
-    date = dt(year=year, month=month, day=1)
-    for record in chosen_month_result:
-        chosenSum += float(record['total'][1:].replace(",", ""))
-    for record in prev_month_result:
-        prevSum += float(record['total'][1:].replace(",", ""))
-    if chosenSum and prevSum:
-        percentChange = (chosenSum - prevSum)/prevSum * 100
-    if percentChange > 0:
-        change = "increase"
-    elif percentChange < 0:
-        change = "decrease"
-    message = f"*[{date.strftime('%b %Y')}]*\n\n"
-    message += f"Total spent: *${chosenSum}*\n"
-    if percentChange:
-        message += f"This is a *{abs(percentChange):.1f}% {change}* from the previous month - ${prevSum}\n"
-    message += "\n"
-    for record in chosen_month_result:
-        message += f"Category: {record['category']} - {record['total']}\n"
-    return message
-
-
-def createConfirmMessage(call):
-    amount = user_dict[call.message.chat.id]['amount']
-    datetime = user_dict[call.message.chat.id]['datetime']
-    return "*[Confirm entry]*\n" \
-              f"Type:                _{user_dict[call.message.chat.id]['type'].capitalize()}_\n" \
-              f"Category:        _{user_dict[call.message.chat.id]['category'].capitalize()}_\n" \
-              f"Amount:          _${amount:.2f}_\n" \
-              f"Description:    _{user_dict[call.message.chat.id]['desc']}_\n" \
-              f"Date:                _{prettydate(datetime)}_\n"
 
 
 def isValidCurrency(s):
@@ -231,6 +237,7 @@ def send_welcome(message):
     bot.send_message(message.chat.id, msg)
 
 
+@bot.message_handler(regexp="Show Records 📊")
 @bot.message_handler(commands=['show'])
 def show_menu(message):
     if message.chat.id not in user_dict.keys():
@@ -322,6 +329,7 @@ def show_calendar_day(call):
                           )
 
 
+@bot.message_handler(regexp="Add Entry 🖋")
 @bot.message_handler(commands=['add'])
 def add_handler(message):
     if message.chat.id not in user_dict.keys():
@@ -576,12 +584,12 @@ def confirm_entry(call):
 
 
 @bot.message_handler(func=lambda message: True)
-def send_welcome(message):
-    msg = "Welcome to AutoFinance Bot, {}! 🌈⛈🎉🌹🐧😊\n\n".format(message.chat.first_name)
-    msg += "AutoFinance Bot assists you with managing cash flow, helping you focus on a prudent & healthy " \
-           "lifestyle 💰💰💰\n\n"
-    msg += ""
-    bot.send_message(message.chat.id, msg)
+def show_start_menu(message):
+    msg = f"Sorry {message.chat.first_name}, we didnt catch that! 🤦🏻‍♀️\n\n"
+    msg += "Perhaps you could try one of the available commands below.\n\n"
+    bot.send_message(message.chat.id,
+                     text=msg,
+                     reply_markup=start_menu)
 
 
 '''
