@@ -4,7 +4,7 @@ import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 # from db_connector import insertExpense, insertIncome, insertRecurring
 from pg_connector import insertExpense, insertIncome, showListDay, getDaySummary, getMonthSummary
-import telegramcalendar
+from misc import telegramcalendar
 import telegram
 import os
 
@@ -34,7 +34,7 @@ def runcommand(method_name, msg):
     method(msg)
 
 user_dict = {}
-ADDOPTIONS = [ "Expense 💸:expense", "Income 💰:income", "Recurring 📆:recurring" ]
+ADDOPTIONS = [ "Expense 💸:expense", "Income 💰:income", "Recurring 📆:recurring", "Exit:exit" ]
 EXPENSES = ["Dining 🍕:dining", "Dates 💕:dates", "Public transport🚇:public transport",
             "Private transport 🚕:private transport", "Housing 🏠:housing", "Travel 🏖:travel"]
 INCOMES = [ "Income 💵:income", "Investment 📈:investment", "Bonus 🎁:bonus", "Commission 💎:commission" ]
@@ -47,6 +47,7 @@ CONFIRMOPTIONS = [ "Yes ✔:confirm_yes", "No ❌:confirm_no", "Back 🔙:confir
 SHOWOPTIONS = [ "Summary 📊:show_summary", "List 📋:show_list", "Exit:exit" ]
 SUMMARYOPTIONS = [ "Daily:summary_day", "Weekly:summary_week", "Monthly:summary_month" ]
 SUMMARYDAYOPTIONS = [ "Select a different date:summary_day", "Done:exit" ]
+SUMMARYWEEKOPTIONS = [ "Select a different week:summary_week", "Done:exit" ]
 SUMMARYMONTHOPTIONS = [ "Select a different month:summary_month", "Done:exit" ]
 RECORDLISTOPTIONS = [ "By day:list_day" ]
 DAYLISTOPTIONS = [ "Select a different date:list_day", "Done:exit" ]
@@ -62,11 +63,12 @@ confirm_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split("
 show_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in SHOWOPTIONS]
 summary_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in SUMMARYOPTIONS]
 summary_day_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in SUMMARYDAYOPTIONS]
+summary_week_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in SUMMARYWEEKOPTIONS]
 summary_month_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in SUMMARYMONTHOPTIONS]
 record_list_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in RECORDLISTOPTIONS]
 day_list_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in DAYLISTOPTIONS]
 add_markup = InlineKeyboardMarkup()
-add_markup.row_width = 1
+add_markup.row_width = 2
 add_markup.add(*add_buttons)
 exp_markup = InlineKeyboardMarkup()
 exp_markup.row_width = 2
@@ -101,6 +103,9 @@ summary_markup.add(*summary_buttons)
 summary_day_markup = InlineKeyboardMarkup()
 summary_day_markup.row_width = 1
 summary_day_markup.add(*summary_day_buttons)
+summary_week_markup = InlineKeyboardMarkup()
+summary_week_markup.row_width = 1
+summary_week_markup.add(*summary_week_buttons)
 summary_month_markup = InlineKeyboardMarkup()
 summary_month_markup.row_width = 1
 summary_month_markup.add(*summary_month_buttons)
@@ -143,7 +148,7 @@ def createDaySummary(date, chosen_day_result, prev_day_result):
     message = f"*[{prettydate(date)}]*\n\n"
     message += f"Total spent: *${chosenSum}*\n"
     if percentChange:
-        message += f"This is a *{percentChange:.0f}% {change}* from the previous day - ${prevSum}\n"
+        message += f"This is a *{abs(percentChange):.1f}% {change}* from the previous day - ${prevSum}\n"
     message += "\n"
     for record in chosen_day_result:
         message += f"Category: {record['category']} - {record['total']}\n"
@@ -167,7 +172,7 @@ def createMonthSummary(year, month, chosen_month_result, prev_month_result):
     message = f"*[{date.strftime('%b %Y')}]*\n\n"
     message += f"Total spent: *${chosenSum}*\n"
     if percentChange:
-        message += f"This is a *{percentChange:.0f}% {change}* from the previous month - ${prevSum}\n"
+        message += f"This is a *{abs(percentChange):.1f}% {change}* from the previous month - ${prevSum}\n"
     message += "\n"
     for record in chosen_month_result:
         message += f"Category: {record['category']} - {record['total']}\n"
@@ -274,7 +279,7 @@ def show_calendar_day(call):
                               message_id=call.message.message_id,
                               reply_markup=telegramcalendar.create_calendar(prev_action=call.data),
                               parse_mode=telegram.ParseMode.MARKDOWN
-        )
+                              )
     if call.data == "summary_week":
         bot.edit_message_text(chat_id=call.message.chat.id,
                               text=text,
@@ -314,7 +319,7 @@ def show_calendar_day(call):
                           message_id=call.message.message_id,
                           reply_markup=telegramcalendar.create_calendar(prev_action=call.data),
                           parse_mode=telegram.ParseMode.MARKDOWN
-    )
+                          )
 
 
 @bot.message_handler(commands=['add'])
@@ -568,6 +573,15 @@ def confirm_entry(call):
                                    "Whenever you're ready!🙇‍♂",
                               message_id=call.message.message_id)
         return
+
+
+@bot.message_handler(func=lambda message: True)
+def send_welcome(message):
+    msg = "Welcome to AutoFinance Bot, {}! 🌈⛈🎉🌹🐧😊\n\n".format(message.chat.first_name)
+    msg += "AutoFinance Bot assists you with managing cash flow, helping you focus on a prudent & healthy " \
+           "lifestyle 💰💰💰\n\n"
+    msg += ""
+    bot.send_message(message.chat.id, msg)
 
 
 '''
