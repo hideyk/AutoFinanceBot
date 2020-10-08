@@ -13,6 +13,7 @@ except Exception as e:
     config = cfg.ConfigParser()
     config.read("config.cfg")
     api_token = config.get("creds", "token")
+
 bot = telebot.TeleBot(api_token, parse_mode=None)
 
 
@@ -102,7 +103,7 @@ def createConfirmMessage(call):
               f"Type:                _{user_dict[call.message.chat.id]['type'].capitalize()}_\n" \
               f"Category:        _{user_dict[call.message.chat.id]['category'].capitalize()}_\n" \
               f"Amount:          _${amount:.2f}_\n" \
-              f"Description:    _{user_dict[call.message.chat.id]['desc']}_\n" \
+              f"Description:    _{user_dict[call.message.chat.id]['desc'].upper()}_\n" \
               f"Date:                _{prettydate(datetime)}_\n"
 
 
@@ -124,10 +125,11 @@ SUMMARYWEEKOPTIONS = [ "Select a different week:summary_week", "Done:exit" ]
 SUMMARYMONTHOPTIONS = [ "Select a different month:summary_month", "Done:exit" ]
 RECORDLISTOPTIONS = [ "By day:list_day" ]
 DAYLISTOPTIONS = [ "Select a different date:list_day", "Done:exit" ]
+CANCELOPTIONS = [ "Cancel:exit" ]
 add_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in ADDOPTIONS]
-expense_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="2exp:"+x.split(":")[1]) for x in EXPENSES]
-income_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="2inc:"+x.split(":")[1]) for x in INCOMES]
-plusminus_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="2rec:"+x.split(":")[1]) for x in PLUS_MINUS]
+expense_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="2exp:"+x) for x in EXPENSES]
+income_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="2inc:"+x) for x in INCOMES]
+plusminus_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="2rec:"+x) for x in PLUS_MINUS]
 recminus_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="3rec:"+x.split(":")[1]) for x in RECURRING_MINUS]
 recplus_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="3rec:"+x.split(":")[1]) for x in RECURRING_PLUS]
 sched_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in SCHEDULES]
@@ -140,6 +142,8 @@ summary_week_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.sp
 summary_month_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in SUMMARYMONTHOPTIONS]
 record_list_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in RECORDLISTOPTIONS]
 day_list_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in DAYLISTOPTIONS]
+cancel_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in CANCELOPTIONS]
+cancel_button = KeyboardButton('Cancel')
 add_markup = InlineKeyboardMarkup()
 add_markup.row_width = 2
 add_markup.add(*add_buttons)
@@ -188,6 +192,8 @@ record_list_markup.add(*record_list_buttons)
 day_list_markup = InlineKeyboardMarkup()
 day_list_markup.row_width = 1
 day_list_markup.add(*day_list_buttons)
+cancel_markup = ReplyKeyboardMarkup(one_time_keyboard=True)
+cancel_markup.row(cancel_button)
 STARTMENUOPTIONS = [ "Add Entry 🖋", "Show Records 📊", "FAQ ❓", "Give Feedback 📣" ]
 start_menu_buttons = [KeyboardButton(x) for x in STARTMENUOPTIONS]
 start_menu = ReplyKeyboardMarkup(one_time_keyboard=True)
@@ -243,11 +249,10 @@ def show_menu(message):
     if message.chat.id not in user_dict.keys():
         user_dict[message.chat.id] = {}
     text = f"Heyo {message.chat.first_name}⭐️\n\n" \
-           f"How may I help you today?\n" \
-           f"*Summary* provides an overview of your expenses on a daily or monthly basis. \n" \
-           f"*List* helps you remember how many satays you munched on cheat day 😉 shh.. its a secret between us.\n\n" \
+           f"*Summary* provides an overview of your expenses on a daily, weekly or monthly basis. \n\n" \
+           f"*List* helps you remember how many satays you munched on cheat day 😉 don't worry, its a secret between us.\n\n" \
            f"Stay tuned for more features! 🛠 \n" \
-           f"Any suggestions for improvement are greatly appreciated, do leave me feedback at @hideyukik 🙆‍♂️\n\n" \
+           f"All suggestions for improvement are greatly appreciated, do leave me feedback at @hideyukik 🙆‍♂️\n\n" \
            f"Please select an option below 🔽"
     msg = bot.send_message(message.chat.id, text, reply_markup=show_markup, parse_mode=telegram.ParseMode.MARKDOWN)
     user_dict[message.chat.id]["lastShow"] = msg.message_id
@@ -288,6 +293,8 @@ def show_calendar_day(call):
                               parse_mode=telegram.ParseMode.MARKDOWN
                               )
     if call.data == "summary_week":
+        text = "*Shift between months and select a date to get the whole week 📅*\n"
+        text += "Note: Weeks go from Mon - Sun"
         bot.edit_message_text(chat_id=call.message.chat.id,
                               text=text,
                               message_id=call.message.message_id,
@@ -335,10 +342,13 @@ def add_handler(message):
     if message.chat.id not in user_dict.keys():
         user_dict[message.chat.id] = {}
     if "lastAdd" in user_dict[message.chat.id].keys():
-        bot.edit_message_text(chat_id=message.chat.id,
-                              text="New instance of /add started.",
-                              message_id=user_dict[message.chat.id]["lastAdd"])
-    msg = bot.send_message(message.chat.id, 'What shall we add sir?', reply_markup=add_markup)
+        try:
+            bot.edit_message_text(chat_id=message.chat.id,
+                                  text="New instance of /add started.",
+                                  message_id=user_dict[message.chat.id]["lastAdd"])
+        except:
+            pass
+    msg = bot.send_message(message.chat.id, 'What shall we add today?', reply_markup=add_markup)
     user_dict[message.chat.id]["lastAdd"] = msg.message_id
 
 
@@ -347,16 +357,18 @@ def expense_query(call):
     if call.data.startswith("exp"):
         user_dict[call.message.chat.id]["type"] = "expense"
         bot.edit_message_text(chat_id=call.message.chat.id,
-                              text="Please select an expense type.",
+                              text="Which category does your expense fall under?",
                               message_id=call.message.message_id,
                               reply_markup=exp_markup)
     if call.data.startswith("2exp"):
-        category = call.data.split(":")[-1]
+        calldata, niceCat, category = call.data.split(":")
         bot.edit_message_text(chat_id=call.message.chat.id,
-                              text="{} selected".format(category.capitalize()),
+                              text="{} selected".format(niceCat.capitalize()),
                               message_id=call.message.message_id)
         user_dict[call.message.chat.id]["category"] = category
-        msg = bot.send_message(call.message.chat.id, text="Please enter an amount.")
+        msg = bot.send_message(call.message.chat.id,
+                               text="Please enter an amount 💵",
+                               reply_markup=cancel_markup)
         user_dict[call.message.chat.id]["lastAdd"] = msg.message_id
         bot.register_next_step_handler(msg, process_amount)
 
@@ -366,16 +378,16 @@ def income_query(call):
     if call.data.startswith("inc"):
         user_dict[call.message.chat.id]["type"] = "income"
         bot.edit_message_text(chat_id=call.message.chat.id,
-                              text="Please select an income type.",
+                              text="Which category does your income fall under?",
                               message_id=call.message.message_id,
                               reply_markup=inc_markup)
     if call.data.startswith("2inc"):
-        category = call.data.split(":")[-1]
+        calldata, niceCat, category = call.data.split(":")
         bot.edit_message_text(chat_id=call.message.chat.id,
-                              text="{} selected".format(category.capitalize()),
+                              text="{} selected".format(niceCat.capitalize()),
                               message_id=call.message.message_id)
         user_dict[call.message.chat.id]["category"] = category
-        msg = bot.send_message(call.message.chat.id, text="Please enter an amount.")
+        msg = bot.send_message(call.message.chat.id, text="Please enter an amount 💵 :")
         user_dict[call.message.chat.id]["lastAdd"] = msg.message_id
         bot.register_next_step_handler(msg, process_amount)
 
@@ -422,7 +434,9 @@ def process_schedule(call):
                           text="{} schedule selected".format(schedule.capitalize()),
                           message_id=call.message.message_id)
     user_dict[call.message.chat.id]["schedule"] = schedule
-    msg = bot.send_message(call.message.chat.id, text="Please enter an amount.")
+    msg = bot.send_message(call.message.chat.id,
+                           text="Please enter an amount 💵 :",
+                           reply_markup=cancel_markup)
     user_dict[call.message.chat.id]["lastAdd"] = msg.message_id
     bot.register_next_step_handler(msg, process_amount)
 
@@ -435,16 +449,19 @@ def process_amount(message):
     if not isValidCurrency(amount):
         msg = bot.edit_message_text(chat_id=message.chat.id,
                                     message_id=user_dict[message.chat.id]["lastAdd"],
-                                    text=f"Value should be between 0.01 and 1000000.\n"
+                                    text=f"Value should be between $0.01 and $1000000.\n"
                                         f"Invalid value: {amount}\n"
-                                        f"Please try again: ")
+                                        f"Please try again 😅",
+                                    reply_markup=cancel_markup)
         bot.register_next_step_handler(msg, process_amount)
         return
     bot.edit_message_text(chat_id=message.chat.id,
                           message_id=user_dict[message.chat.id]["lastAdd"],
                           text=f"Valid amount: ${float(amount):.2f}")
     user_dict[message.chat.id]["amount"] = float(amount)
-    msg = bot.send_message(message.chat.id, text="Please enter a description.")
+    msg = bot.send_message(message.chat.id,
+                           text="Please enter a description 📝:",
+                           reply_markup=cancel_markup)
     user_dict[message.chat.id]["lastAdd"] = msg.message_id
     bot.register_next_step_handler(msg, process_description)
 
@@ -458,7 +475,8 @@ def process_description(message):
         msg = bot.edit_message_text(chat_id=message.chat.id,
                                     message_id=user_dict[message.chat.id]["lastAdd"],
                                     text=f"Description too long: {description}\n"
-                                         f"Please try again with less than 50 characters: ")
+                                         f"Please try again with less than 50 characters 😅",
+                                    reply_markup=cancel_markup)
         bot.register_next_step_handler(msg, process_description)
         return
     bot.edit_message_text(chat_id=message.chat.id,
@@ -558,13 +576,14 @@ def confirm_entry(call):
                 insertIncome(call.message.chat.id, category, amount, desc, cleandt)
                 insertType = "Income"
 
-            final_msg = f"*[{insertType} successfully added]*\n" \
+            final_msg = f"*[{insertType} successfully added]*🎉\n" \
                         f"Category:       {category.capitalize()}\n" \
-                        f"Amount:         ${amount:.2f}\n\n" \
+                        f"Amount:         ${amount:.2f}\n" \
+                        f"Description:    {desc}" \
                         f"/add another entry?"
             bot.answer_callback_query(callback_query_id=call.id,
                                       show_alert=True,
-                                      text="Entry successfully entered.")
+                                      text="Entry successfully added 🎉")
             bot.edit_message_text(chat_id=call.message.chat.id,
                                   message_id=call.message.message_id,
                                   text=final_msg,
