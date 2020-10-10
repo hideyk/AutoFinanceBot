@@ -1,8 +1,9 @@
 from datetime import datetime as dt, timedelta
 import configparser as cfg
 import telebot
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from pg_connector import insertExpense, insertIncome, showListDay, getDaySummary, getMonthSummary
+from FAQ import createFAQmessage, FAQ_messages
 from misc import telegramcalendar
 import telegram
 import os
@@ -22,7 +23,8 @@ commands = {  # command description used in the "help" command
     '/help'        : 'Gives you information about the available commands',
     '/add'         : 'add_handler',
     '/info'        : 'bot_info',
-    '/show'        : 'show_menu'
+    '/show'        : 'show_record_menu',
+    'Cancel'       : 'show_start_menu'
 }
 
 def runcommand(method_name, msg):
@@ -34,10 +36,15 @@ def runcommand(method_name, msg):
     method(msg)
 
 
+def raise_start_menu(bot, call):
+    bot.send_message(chat_id=call.message.chat.id,
+                     text="Please select one of the available commands below 🔽",
+                     reply_markup=start_menu)
+
+
 def createDayListMessage(date, db_day_results):
     message = f"*[{prettydate(date)}]*\n\n"
     if db_day_results:
-        print(db_day_results)
         for record in db_day_results:
             message += "```\n" \
                        f"{record['category'].capitalize()}\n" \
@@ -103,7 +110,7 @@ def createConfirmMessage(call):
               f"Type:                _{user_dict[call.message.chat.id]['type'].capitalize()}_\n" \
               f"Category:        _{user_dict[call.message.chat.id]['category'].capitalize()}_\n" \
               f"Amount:          _${amount:.2f}_\n" \
-              f"Description:    _{user_dict[call.message.chat.id]['desc'].upper()}_\n" \
+              f"Description:    _{user_dict[call.message.chat.id]['desc'].capitalize()}_\n" \
               f"Date:                _{prettydate(datetime)}_\n"
 
 
@@ -125,7 +132,6 @@ SUMMARYWEEKOPTIONS = [ "Select a different week:summary_week", "Done:exit" ]
 SUMMARYMONTHOPTIONS = [ "Select a different month:summary_month", "Done:exit" ]
 RECORDLISTOPTIONS = [ "By day:list_day" ]
 DAYLISTOPTIONS = [ "Select a different date:list_day", "Done:exit" ]
-CANCELOPTIONS = [ "Cancel:exit" ]
 add_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in ADDOPTIONS]
 expense_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="2exp:"+x) for x in EXPENSES]
 income_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="2inc:"+x) for x in INCOMES]
@@ -142,7 +148,6 @@ summary_week_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.sp
 summary_month_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in SUMMARYMONTHOPTIONS]
 record_list_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in RECORDLISTOPTIONS]
 day_list_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in DAYLISTOPTIONS]
-cancel_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in CANCELOPTIONS]
 cancel_button = KeyboardButton('Cancel')
 add_markup = InlineKeyboardMarkup()
 add_markup.row_width = 2
@@ -192,14 +197,13 @@ record_list_markup.add(*record_list_buttons)
 day_list_markup = InlineKeyboardMarkup()
 day_list_markup.row_width = 1
 day_list_markup.add(*day_list_buttons)
-cancel_markup = ReplyKeyboardMarkup(one_time_keyboard=True)
+cancel_markup = ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
 cancel_markup.row(cancel_button)
 STARTMENUOPTIONS = [ "Add Entry 🖋", "Show Records 📊", "FAQ ❓", "Give Feedback 📣" ]
 start_menu_buttons = [KeyboardButton(x) for x in STARTMENUOPTIONS]
-start_menu = ReplyKeyboardMarkup(one_time_keyboard=True)
+start_menu = ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
 start_menu.row(start_menu_buttons[0], start_menu_buttons[1])
 start_menu.row(start_menu_buttons[2], start_menu_buttons[3])
-
 
 
 def isValidCurrency(s):
@@ -243,9 +247,15 @@ def send_welcome(message):
     bot.send_message(message.chat.id, msg)
 
 
+@bot.message_handler(regexp="FAQ ❓")
+def show_FAQ(message):
+    createFAQmessage()
+    return
+
+
 @bot.message_handler(regexp="Show Records 📊")
 @bot.message_handler(commands=['show'])
-def show_menu(message):
+def show_record_menu(message):
     if message.chat.id not in user_dict.keys():
         user_dict[message.chat.id] = {}
     text = f"Heyo {message.chat.first_name}⭐️\n\n" \
@@ -265,6 +275,7 @@ def exit(call):
                           message_id=call.message.message_id,
                           parse_mode=telegram.ParseMode.MARKDOWN
     )
+    raise_start_menu(bot, call)
 
 
 @bot.callback_query_handler(lambda query: query.data == "show_summary")
@@ -277,7 +288,7 @@ def show_summary(call):
                           message_id=call.message.message_id,
                           reply_markup=summary_markup,
                           parse_mode=telegram.ParseMode.MARKDOWN
-                          )
+    )
 
 
 @bot.callback_query_handler(lambda query: query.data == "summary_day" or query.data == "summary_week"
@@ -341,13 +352,11 @@ def show_calendar_day(call):
 def add_handler(message):
     if message.chat.id not in user_dict.keys():
         user_dict[message.chat.id] = {}
-    if "lastAdd" in user_dict[message.chat.id].keys():
-        try:
-            bot.edit_message_text(chat_id=message.chat.id,
-                                  text="New instance of /add started.",
-                                  message_id=user_dict[message.chat.id]["lastAdd"])
-        except:
-            pass
+    # if "lastAdd" in user_dict[message.chat.id].keys():
+    #     bot.edit_message_text(chat_id=message.chat.id,
+    #                           text="New instance of /add started.",
+    #                           message_id=user_dict[message.chat.id]["lastAdd"],
+    #                           reply_markup=ReplyKeyboardRemove())
     msg = bot.send_message(message.chat.id, 'What shall we add today?', reply_markup=add_markup)
     user_dict[message.chat.id]["lastAdd"] = msg.message_id
 
@@ -447,21 +456,23 @@ def process_amount(message):
         runcommand(commands[amount], message)
         return
     if not isValidCurrency(amount):
-        msg = bot.edit_message_text(chat_id=message.chat.id,
-                                    message_id=user_dict[message.chat.id]["lastAdd"],
+        msg = bot.send_message(chat_id=message.chat.id,
                                     text=f"Value should be between $0.01 and $1000000.\n"
                                         f"Invalid value: {amount}\n"
-                                        f"Please try again 😅",
+                                        f"Please enter an amount again 😅",
                                     reply_markup=cancel_markup)
+        ReplyKeyboardMarkup()
         bot.register_next_step_handler(msg, process_amount)
         return
-    bot.edit_message_text(chat_id=message.chat.id,
-                          message_id=user_dict[message.chat.id]["lastAdd"],
-                          text=f"Valid amount: ${float(amount):.2f}")
+    # bot.edit_message_text(chat_id=message.chat.id,
+    #                       message_id=user_dict[message.chat.id]["lastAdd"],
+    #                       text=f"Valid amount: ${float(amount):.2f}")
     user_dict[message.chat.id]["amount"] = float(amount)
     msg = bot.send_message(message.chat.id,
-                           text="Please enter a description 📝:",
-                           reply_markup=cancel_markup)
+                           text=f"*Valid amount: ${float(amount):.2f}*\n\n"
+                                f"Please enter a description 📝",
+                           reply_markup=cancel_markup,
+                           parse_mode=telegram.ParseMode.MARKDOWN)
     user_dict[message.chat.id]["lastAdd"] = msg.message_id
     bot.register_next_step_handler(msg, process_description)
 
@@ -472,18 +483,19 @@ def process_description(message):
         runcommand(commands[description], message)
         return
     if len(description) >= 50:
-        msg = bot.edit_message_text(chat_id=message.chat.id,
-                                    message_id=user_dict[message.chat.id]["lastAdd"],
-                                    text=f"Description too long: {description}\n"
-                                         f"Please try again with less than 50 characters 😅",
-                                    reply_markup=cancel_markup)
+        msg = bot.send_message(chat_id=message.chat.id,
+                               text=f"*Description too long!* {description}\n\n"
+                                    f"Please try again with less than 50 characters 😅",
+                               reply_markup=cancel_markup,
+                               parse_mode=telegram.ParseMode.MARKDOWN)
         bot.register_next_step_handler(msg, process_description)
         return
-    bot.edit_message_text(chat_id=message.chat.id,
-                          message_id=user_dict[message.chat.id]["lastAdd"],
-                          text=f"Description: {description}")
+    bot.send_message(chat_id=message.chat.id,
+                     text=f"*Description: {description}*",
+                     reply_markup=ReplyKeyboardRemove(),
+                     parse_mode=telegram.ParseMode.MARKDOWN)
     user_dict[message.chat.id]["desc"] = description
-    bot.send_message(message.chat.id, text="Select a date", reply_markup=date_markup)
+    bot.send_message(message.chat.id, text="Let's select a date 📅", reply_markup=date_markup)
 
 
 @bot.callback_query_handler(lambda query: query.data.endswith("date") or query.data == "confirm_back" or query.data == "custom_calendar")
@@ -491,7 +503,7 @@ def process_date(call):
     if call.data == "confirm_back":
         bot.edit_message_text(chat_id=call.message.chat.id,
                               message_id=call.message.message_id,
-                              text="Select a date",
+                              text="Let's select a date again 📅",
                               reply_markup=date_markup)
         return
     now = dt.now()
@@ -500,11 +512,12 @@ def process_date(call):
     if call.data.endswith("date"):
         user_dict[call.message.chat.id]["datetime"] = now
         chosendt = prettydate(now)
-        bot.edit_message_text(chat_id=call.message.chat.id,
-                              text="{} selected.".format(chosendt),
-                              message_id=call.message.message_id)
+        # bot.edit_message_text(chat_id=call.message.chat.id,
+        #                       text="{} selected.".format(chosendt),
+        #                       message_id=call.message.message_id)
 
-        msg = bot.send_message(call.message.chat.id,
+        msg = bot.edit_message_text(chat_id=call.message.chat.id,
+                               message_id=call.message.message_id,
                                text=createConfirmMessage(call),
                                reply_markup=confirm_markup,
                                parse_mode=telegram.ParseMode.MARKDOWN)
@@ -579,7 +592,7 @@ def confirm_entry(call):
             final_msg = f"*[{insertType} successfully added]*🎉\n" \
                         f"Category:       {category.capitalize()}\n" \
                         f"Amount:         ${amount:.2f}\n" \
-                        f"Description:    {desc}" \
+                        f"Description:    {desc}\n\n" \
                         f"/add another entry?"
             bot.answer_callback_query(callback_query_id=call.id,
                                       show_alert=True,
@@ -588,6 +601,7 @@ def confirm_entry(call):
                                   message_id=call.message.message_id,
                                   text=final_msg,
                                   parse_mode=telegram.ParseMode.MARKDOWN)
+            raise_start_menu(bot, call)
             user_dict[call.message.chat.id] = {}
 
             return
@@ -599,13 +613,18 @@ def confirm_entry(call):
                               text="Entry not added.\n"
                                    "Whenever you're ready!🙇‍♂",
                               message_id=call.message.message_id)
+        raise_start_menu(bot, call)
         return
 
 
 @bot.message_handler(func=lambda message: True)
 def show_start_menu(message):
-    msg = f"Sorry {message.chat.first_name}, we didnt catch that! 🤦🏻‍♀️\n\n"
-    msg += "Perhaps you could try one of the available commands below.\n\n"
+    if message.text == "Cancel":
+        msg = f"Let's start over 👌\n\n" \
+              f"Please select one of the available commands below 🔽"
+    else:
+        msg = f"Sorry {message.chat.first_name}, we didnt catch that! 🤦🏻‍♀️\n\n"
+        msg += "Perhaps you could try one of the available commands below 🔽\n\n"
     bot.send_message(message.chat.id,
                      text=msg,
                      reply_markup=start_menu)
@@ -613,17 +632,10 @@ def show_start_menu(message):
 
 '''
 - Include an EXPORT function!
-
 '''
 
 '''
 For final input into DB
-
-Callback as alert
-bot.answer_callback_query(callback_query_id=call.id,
-                                   show_alert=True,
-                                   text="You Clicked " + call.data + " and key is ")
-
 
 URL markup
 markup = types.InlineKeyboardMarkup()
