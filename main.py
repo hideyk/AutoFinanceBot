@@ -514,11 +514,6 @@ def process_date(call):
         now -= timedelta(days=1)
     if call.data.endswith("date"):
         user_dict[call.message.chat.id]["datetime"] = now
-        chosendt = prettydate(now)
-        # bot.edit_message_text(chat_id=call.message.chat.id,
-        #                       text="{} selected.".format(chosendt),
-        #                       message_id=call.message.message_id)
-
         msg = bot.edit_message_text(chat_id=call.message.chat.id,
                                message_id=call.message.message_id,
                                text=createConfirmMessage(call),
@@ -540,10 +535,11 @@ def process_date(call):
 def process_calendar(call):
     selected, date, prev_action = telegramcalendar.process_calendar_selection(bot, call, user_dict)
     if selected and prev_action == "custom_calendar":
-        msg = bot.send_message(call.message.chat.id,
-                               text=createConfirmMessage(call),
-                               reply_markup=confirm_markup,
-                               parse_mode=telegram.ParseMode.MARKDOWN)
+        msg = bot.edit_message_text(chat_id=call.message.chat.id,
+                                    message_id=call.message.message_id,
+                                    text=createConfirmMessage(call),
+                                    reply_markup=confirm_markup,
+                                    parse_mode=telegram.ParseMode.MARKDOWN)
         user_dict[call.message.chat.id]["lastAdd"] = msg.message_id
     if selected and prev_action == "list_day":
         results = showListDay(call.message.chat.id, getdbdate(date))
