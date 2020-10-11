@@ -249,8 +249,11 @@ def send_welcome(message):
 
 @bot.message_handler(regexp="FAQ ❓")
 def show_FAQ(message):
-    createFAQmessage()
-    return
+    msg = createFAQmessage()
+    bot.send_message(message.chat.id,
+                     text=msg,
+                     reply_markup=start_menu,
+                     parse_mode=telegram.ParseMode.MARKDOWN)
 
 
 @bot.message_handler(regexp="Show Records 📊")
