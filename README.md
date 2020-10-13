@@ -40,3 +40,12 @@
 - Update
     - Disable recurring
     - Update recurring
+    
+
+<h4>Bugs</h4>
+
+- Major
+    - Have to handle dictionary key errors upon restart
+- Minor
+    - Recurring entries not complete
+    - There should be indicator to know if expense/incomes are recurring or not (True/False boolean)

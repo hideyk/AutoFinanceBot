@@ -187,8 +187,9 @@ def getWeekSummary(userid, selected_date):
                         to_char(created_dt, 'iyyy-iw') = to_char(date %s, 'iyyy-iw') 
                         GROUP BY category;""", (userid, prevWeekDate))
             prevWeekRes = cur.fetchall()
-        if prevWeekRes[0]['total'] is None:
-            prevWeekRes = []
+        if prevWeekRes:
+            if prevWeekRes[0]['total'] is None:
+                prevWeekRes = []
         return chosenWeekRes, prevWeekRes
     except Exception as e:
         print(e)

@@ -117,11 +117,13 @@ def process_calendar_selection(telebot, call, userDict):
 
 def month_calendar(year=None, prev_action=None):
     now = dt.now()
-    curYear = now.year
+    curYear, curMonth = now.year, now.month
     if year == None: year = now.year
     data_ignore = create_month_callback("MONTH-IGNORE", year, str(0), prev_action)
     keyboard = []
     for i, month in enumerate(["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]):
+        if i+1 == curMonth:
+            month = f"*{month}*"
         keyboard.append(InlineKeyboardButton(month,callback_data=create_month_callback("SELECT-MONTH", year, str(i+1), prev_action)))
 
     keyboard.append(InlineKeyboardButton("<", callback_data=create_month_callback("PREV-YEAR", year, str(0), prev_action)))

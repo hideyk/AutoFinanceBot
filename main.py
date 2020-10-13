@@ -158,12 +158,13 @@ def createConfirmMessage(call):
               f"Date:                _{prettydate(datetime)}_\n"
 
 
+EXIT_BUTTON = InlineKeyboardButton("Cancel", callback_data="exit")
 user_dict = {}
 ADDOPTIONS = [ "Expense 💸:expense", "Income 💰:income", "Recurring 📆:recurring", "Back:back_to_main_menu" ]
-EXPENSES = ["Dining 🍕:dining", "Retail 👕👗:retail", "Dates 💕:dates", "Transport🚇:transport", "Housing 🏠:housing", "Travel 🏖:travel",
-            "Misc:misc", "Exit:exit"]
-INCOMES = [ "Income 💵:income", "Investment 📈:investment", "Bonus 🎁:bonus", "Commission 💎:commission", "Exit:exit" ]
-PLUS_MINUS = [ "Cash flow in 🔼:plus", "Cash flow out🔽:minus", "Exit:exit" ]
+EXPENSES = ["Dining 🍕:dining", "Fitness 🧗:fitness", "Retail 👜:retail", "Dates 💕:dates", "Transport🚇:transport", "Housing 🏠:housing", "Leisure 🏖:leisure",
+            "▪️Misc▪️:misc"]
+INCOMES = [ "Income 💵:income", "Investment 📈:investment", "Bonus 🎁:bonus", "Commission 💎:commission" ]
+PLUS_MINUS = [ "Cash flow in 🔼:plus", "Cash flow out🔽:minus" ]
 RECURRING_MINUS = [ "Housing 🏠:housing", "Income 💵:income", "Bills 📱:bills", "Subscriptions 📦:subscriptions", "Insurance 🩹:insurance" ]
 RECURRING_PLUS = [ "Income 💵:income" ]
 SCHEDULES = [ "Daily:sched_daily", "Weekly:sched_weekly", "Monthly:sched_monthly"]
@@ -199,12 +200,15 @@ add_markup.add(*add_buttons)
 exp_markup = InlineKeyboardMarkup()
 exp_markup.row_width = 2
 exp_markup.add(*expense_buttons)
+exp_markup.add(EXIT_BUTTON)
 inc_markup = InlineKeyboardMarkup()
 inc_markup.row_width = 2
 inc_markup.add(*income_buttons)
+inc_markup.add(EXIT_BUTTON)
 plusminus_markup = InlineKeyboardMarkup()
 plusminus_markup.row_width = 1
 plusminus_markup.add(*plusminus_buttons)
+plusminus_markup.add(EXIT_BUTTON)
 recminus_markup = InlineKeyboardMarkup()
 recminus_markup.row_width = 2
 recminus_markup.add(*recminus_buttons)
@@ -319,7 +323,7 @@ def show_feedback(message):
 @bot.message_handler(regexp="About Page 🗞")
 def show_feedback(message):
     msg = createAboutMessage()
-    bot.send_chat_action(message.chat.id, 'typing')
+    bot.send_chat_action(message.chat.id, 'typing', timeout=2)
     bot.send_message(chat_id=message.chat.id,
                      text=msg,
                      parse_mode=telegram.ParseMode.MARKDOWN,
@@ -621,7 +625,7 @@ def process_calendar(call):
                                     parse_mode=telegram.ParseMode.MARKDOWN)
         user_dict[call.message.chat.id]["lastAdd"] = msg.message_id
     if selected and prev_action == "catalogue_day":
-        bot.send_chat_action(call.message.chat.id, 'typing', timeout=1.5)
+        bot.send_chat_action(call.message.chat.id, 'typing', timeout=2)
         results = showCatalogueDay(call.message.chat.id, getdbdate(date))
         reply_text = createDayCatalogueMessage(date, results)
         bot.edit_message_text(chat_id=call.message.chat.id,
@@ -630,7 +634,7 @@ def process_calendar(call):
                               reply_markup=day_catalogue_markup,
                               parse_mode=telegram.ParseMode.MARKDOWN)
     if selected and prev_action == "summary_day":
-        bot.send_chat_action(call.message.chat.id, 'typing')
+        bot.send_chat_action(call.message.chat.id, 'typing', timeout=2)
         chosenDayResult, prevDayResult = getDaySummary(call.message.chat.id, getdbdate(date))
         reply_text = createDaySummary(date, chosenDayResult, prevDayResult)
         bot.edit_message_text(chat_id=call.message.chat.id,
@@ -639,7 +643,7 @@ def process_calendar(call):
                               reply_markup=summary_day_markup,
                               parse_mode=telegram.ParseMode.MARKDOWN)
     if selected and prev_action == "summary_week":
-        bot.send_chat_action(call.message.chat.id, 'typing')
+        bot.send_chat_action(call.message.chat.id, 'typing', timeout=2)
         chosenWeekResult, prevWeekResult = getWeekSummary(call.message.chat.id, getdbdate(date))
         reply_text = createWeekSummary(date, chosenWeekResult, prevWeekResult)
         bot.edit_message_text(chat_id=call.message.chat.id,
@@ -654,7 +658,7 @@ def process_calendar(call):
 def process_calendar(call):
     selected, year, month, prev_action = telegramcalendar.process_month_selection(bot, call, user_dict)
     if selected and prev_action == "summary_month":
-        bot.send_chat_action(call.message.chat.id, 'typing')
+        bot.send_chat_action(call.message.chat.id, 'typing', timeout=2)
         chosenMonthResult, prevMonthResult = getMonthSummary(call.message.chat.id, year, month)
         reply_text = createMonthSummary(year, month, chosenMonthResult, prevMonthResult)
         bot.edit_message_text(chat_id=call.message.chat.id,
