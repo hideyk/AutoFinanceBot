@@ -1,7 +1,8 @@
 
 FAQ_messages = {
     "Can anyone access my data?": "Definitely not! Your records are linked to your unique Telegram User ID. ",
-    "I changed my number. Will my records still be available to me?": "Yes. Data is linked to your Telegram User ID.",
+    "I changed my number. Will my records still be available to me?":
+    "Yes. Data is linked to your Telegram User ID. Changing your number will not have an impact.",
     "While tipsy last night, I added a vodka expense when it was supposed to be gin. Is it possible to edit it?":
     "Currently, there is no way to edit your past records 😔 This feature may be available in a future release 🔧",
     "How many daily records do I get to save?":

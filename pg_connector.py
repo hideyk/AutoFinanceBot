@@ -70,7 +70,7 @@ def insertIncome(userid, category, amount, desc, created_dt):
         print("Insert failed")
 
 
-def showListDay(userid, created_dt):
+def showCatalogueDay(userid, created_dt):
     try:
         DATABASE_URL = os.environ['DATABASE_URL']
         conn = pg.connect(

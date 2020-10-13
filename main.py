@@ -2,7 +2,7 @@ from datetime import datetime as dt, timedelta
 import configparser as cfg
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
-from pg_connector import insertExpense, insertIncome, showListDay, getDaySummary, getMonthSummary
+from pg_connector import insertExpense, insertIncome, showCatalogueDay, getDaySummary, getMonthSummary
 from FAQ import createFAQmessage, FAQ_messages
 from misc import telegramcalendar
 import telegram
@@ -42,7 +42,15 @@ def raise_start_menu(bot, call):
                      reply_markup=start_menu)
 
 
-def createDayListMessage(date, db_day_results):
+def createFeedbackMessage():
+    msg = "*[Page Unavailable]*\n\n" \
+          "This feature is currently being developed. " \
+          "Please give us some time to fix this. 👨🏻‍💻\n\n" \
+          "In the meantime, you may direct all queries and feedback to @hideyukik. Thank you for your patience!"
+    return msg
+
+
+def createDayCatalogueMessage(date, db_day_results):
     message = f"*[{prettydate(date)}]*\n\n"
     if db_day_results:
         for record in db_day_results:
@@ -116,22 +124,22 @@ def createConfirmMessage(call):
 
 user_dict = {}
 ADDOPTIONS = [ "Expense 💸:expense", "Income 💰:income", "Recurring 📆:recurring", "Exit:exit" ]
-EXPENSES = ["Dining 🍕:dining", "Dates 💕:dates", "Public transport🚇:public transport",
-            "Private transport 🚕:private transport", "Housing 🏠:housing", "Travel 🏖:travel"]
-INCOMES = [ "Income 💵:income", "Investment 📈:investment", "Bonus 🎁:bonus", "Commission 💎:commission" ]
-PLUS_MINUS = [ "Cash flow in 🔼:plus", "Cash flow out🔽:minus" ]
+EXPENSES = ["Dining 🍕:dining", "Retail 👕👗:retail", "Dates 💕:dates", "Transport🚇:transport", "Housing 🏠:housing", "Travel 🏖:travel",
+            "Misc:misc", "Exit:exit"]
+INCOMES = [ "Income 💵:income", "Investment 📈:investment", "Bonus 🎁:bonus", "Commission 💎:commission", "Exit:exit" ]
+PLUS_MINUS = [ "Cash flow in 🔼:plus", "Cash flow out🔽:minus", "Exit:exit" ]
 RECURRING_MINUS = [ "Housing 🏠:housing", "Income 💵:income", "Bills 📱:bills", "Subscriptions 📦:subscriptions", "Insurance 🩹:insurance" ]
 RECURRING_PLUS = [ "Income 💵:income" ]
 SCHEDULES = [ "Daily:sched_daily", "Weekly:sched_weekly", "Monthly:sched_monthly"]
 DATEOPTIONS = [ "Today:tdy_date", "Yesterday:yst_date", "Custom date 📆:custom_calendar" ]
 CONFIRMOPTIONS = [ "Yes ✔:confirm_yes", "No ❌:confirm_no", "Back 🔙:confirm_back" ]
-SHOWOPTIONS = [ "Summary 📊:show_summary", "List 📋:show_list", "Exit:exit" ]
+SHOWOPTIONS = [ "Summary 📊:show_summary", "Catalogue 📋:show_catalogue", "Exit:exit" ]
 SUMMARYOPTIONS = [ "Daily:summary_day", "Weekly:summary_week", "Monthly:summary_month" ]
 SUMMARYDAYOPTIONS = [ "Select a different date:summary_day", "Done:exit" ]
 SUMMARYWEEKOPTIONS = [ "Select a different week:summary_week", "Done:exit" ]
 SUMMARYMONTHOPTIONS = [ "Select a different month:summary_month", "Done:exit" ]
-RECORDLISTOPTIONS = [ "By day:list_day" ]
-DAYLISTOPTIONS = [ "Select a different date:list_day", "Done:exit" ]
+RECORDCATALOGUEOPTIONS = [ "By day:catalogue_day" ]
+DAYCATALOGUEOPTIONS = [ "Select a different date:catalogue_day", "Done:exit" ]
 add_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in ADDOPTIONS]
 expense_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="2exp:"+x) for x in EXPENSES]
 income_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="2inc:"+x) for x in INCOMES]
@@ -146,8 +154,8 @@ summary_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split("
 summary_day_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in SUMMARYDAYOPTIONS]
 summary_week_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in SUMMARYWEEKOPTIONS]
 summary_month_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in SUMMARYMONTHOPTIONS]
-record_list_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in RECORDLISTOPTIONS]
-day_list_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in DAYLISTOPTIONS]
+record_catalogue_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in RECORDCATALOGUEOPTIONS]
+day_catalogue_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in DAYCATALOGUEOPTIONS]
 cancel_button = KeyboardButton('Cancel')
 add_markup = InlineKeyboardMarkup()
 add_markup.row_width = 2
@@ -191,12 +199,12 @@ summary_week_markup.add(*summary_week_buttons)
 summary_month_markup = InlineKeyboardMarkup()
 summary_month_markup.row_width = 1
 summary_month_markup.add(*summary_month_buttons)
-record_list_markup = InlineKeyboardMarkup()
-record_list_markup.row_width = 1
-record_list_markup.add(*record_list_buttons)
-day_list_markup = InlineKeyboardMarkup()
-day_list_markup.row_width = 1
-day_list_markup.add(*day_list_buttons)
+record_catalogue_markup = InlineKeyboardMarkup()
+record_catalogue_markup.row_width = 1
+record_catalogue_markup.add(*record_catalogue_buttons)
+day_catalogue_markup = InlineKeyboardMarkup()
+day_catalogue_markup.row_width = 1
+day_catalogue_markup.add(*day_catalogue_buttons)
 cancel_markup = ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
 cancel_markup.row(cancel_button)
 STARTMENUOPTIONS = [ "Add Entry 🖋", "Show Records 📊", "FAQ ❓", "Give Feedback 📣" ]
@@ -256,6 +264,21 @@ def show_FAQ(message):
                      parse_mode=telegram.ParseMode.MARKDOWN)
 
 
+@bot.message_handler(regexp="Give Feedback 📣")
+def show_feedback(message):
+    msg = createFeedbackMessage()
+    bot.send_chat_action(message.chat.id, 'typing')
+    bot.send_photo(chat_id=message.chat.id,
+                   photo=open('dog_in_rain.jpg', 'rb'),
+                   caption=msg,
+                   parse_mode=telegram.ParseMode.MARKDOWN,
+                   reply_markup=start_menu)
+    # bot.send_message(message.chat.id,
+    #                  text=msg,
+    #                  reply_markup=start_menu,
+    #                  parse_mode=telegram.ParseMode.MARKDOWN)
+#
+
 @bot.message_handler(regexp="Show Records 📊")
 @bot.message_handler(commands=['show'])
 def show_record_menu(message):
@@ -263,7 +286,8 @@ def show_record_menu(message):
         user_dict[message.chat.id] = {}
     text = f"Heyo {message.chat.first_name}⭐️\n\n" \
            f"*Summary* provides an overview of your expenses on a daily, weekly or monthly basis. \n\n" \
-           f"*List* helps you remember how many satays you munched on cheat day 😉 don't worry, its a secret between us.\n\n" \
+           f"*Catalogue* provides a list of records and helps you remember how many satays you munched on cheat day " \
+           f"😉 don't worry, its a secret between us.\n\n" \
            f"Stay tuned for more features! 🛠 \n" \
            f"All suggestions for improvement are greatly appreciated, do leave me feedback at @hideyukik 🙆‍♂️\n\n" \
            f"Please select an option below 🔽"
@@ -325,20 +349,20 @@ def show_calendar_day(call):
                               )
 
 
-@bot.callback_query_handler(lambda query: query.data == "show_list")
-def show_list(call):
+@bot.callback_query_handler(lambda query: query.data == "show_catalogue")
+def show_catalogue(call):
     user_dict[call.message.chat.id]["show_type"] = call.data
-    text = "*[List]*\n\n" \
-           "Please select which records you want to list!\n"
+    text = "*[Catalogue]*\n\n" \
+           "Please select which records you want to list out!\n"
     bot.edit_message_text(chat_id=call.message.chat.id,
                           text=text,
                           message_id=call.message.message_id,
-                          reply_markup=record_list_markup,
+                          reply_markup=record_catalogue_markup,
                           parse_mode=telegram.ParseMode.MARKDOWN
     )
 
 
-@bot.callback_query_handler(lambda query: query.data == "list_day")
+@bot.callback_query_handler(lambda query: query.data == "catalogue_day")
 def show_calendar_day(call):
     user_dict[call.message.chat.id]["show_type"] = call.data
     text = "*Shift between months and select a date 📅*"
@@ -530,6 +554,7 @@ def process_date(call):
                               )
 
 
+
 @bot.callback_query_handler(lambda query: query.data.startswith("MONTH-IGNORE") or query.data.startswith("DAY-MONTH")
                                           or query.data.startswith("PREV-MONTH") or query.data.startswith("NEXT-MONTH"))
 def process_calendar(call):
@@ -541,12 +566,12 @@ def process_calendar(call):
                                     reply_markup=confirm_markup,
                                     parse_mode=telegram.ParseMode.MARKDOWN)
         user_dict[call.message.chat.id]["lastAdd"] = msg.message_id
-    if selected and prev_action == "list_day":
-        results = showListDay(call.message.chat.id, getdbdate(date))
-        reply_text = createDayListMessage(date, results)
+    if selected and prev_action == "catalogue_day":
+        results = showCatalogueDay(call.message.chat.id, getdbdate(date))
+        reply_text = createDayCatalogueMessage(date, results)
         bot.send_message(call.message.chat.id,
                                text=reply_text,
-                               reply_markup=day_list_markup,
+                               reply_markup=day_catalogue_markup,
                                parse_mode=telegram.ParseMode.MARKDOWN)
     if selected and prev_action == "summary_day":
         chosenDayResult, prevDayResult = getDaySummary(call.message.chat.id, getdbdate(date))
@@ -622,7 +647,7 @@ def show_start_menu(message):
         msg = f"Let's start over 👌\n\n" \
               f"Please select one of the available commands below 🔽"
     else:
-        msg = f"Sorry {message.chat.first_name}, we didnt catch that! 🤦🏻‍♀️\n\n"
+        msg = f"Hey {message.chat.first_name}, we didn't catch that! 🤦🏻‍♂️🤦🏻‍♀️\n\n"
         msg += "Perhaps you could try one of the available commands below 🔽\n\n"
     bot.send_message(message.chat.id,
                      text=msg,
