@@ -12,9 +12,9 @@ FAQ_messages = {
 }
 
 def createFAQmessage():
-    message = f"Below are some Frequently Asked Questions you might find helpful 🦉📚...\n\n"
+    message = f"Below are some Frequently Asked Questions you might find useful 🦉📚...\n\n"
     for question, answer in FAQ_messages.items():
         message += f"Q: *{question}*\nA: {answer}\n\n"
-    message += "If you have any other queries, please feel free to ask them in *Give Feedback* 💬\n\n" \
+    message += "If you have any queries not covered above, please feel free to ask them in *Give Feedback* 💬\n\n" \
                "We understand this list is far from perfect but we'll strive to improve as we grow! ☺️"
     return message

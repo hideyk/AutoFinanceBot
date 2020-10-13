@@ -17,6 +17,34 @@ except:
     pass
 
 
+def insertNewUser(userid, firstname):
+    try:
+        DATABASE_URL = os.environ['DATABASE_URL']
+        conn = pg.connect(
+            DATABASE_URL,
+            sslmode='require'
+        )
+    except Exception as e:
+        conn = pg.connect(
+            host=HOST,
+            database=DATABASE,
+            user=USER,
+            password=PASSWORD
+        )
+    try:
+        conn.set_session(autocommit=True)
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM users WHERE userid=%s;", [userid])
+            userdetails = cur.fetchall()
+            if not userdetails:
+                cur.execute("INSERT INTO users (userid, firstName) VALUES (%s, %s);",
+                            (userid, firstname))
+    except Exception as e:
+        print(e)
+        print("Insert failed")
+    conn.close()
+
+
 def insertExpense(userid, category, amount, desc, created_dt):
     try:
         DATABASE_URL = os.environ['DATABASE_URL']
@@ -37,10 +65,10 @@ def insertExpense(userid, category, amount, desc, created_dt):
             cur.execute("INSERT INTO expenses (userid, category, amount, description, created_dt) "
                         "VALUES (%s, %s, %s, %s, %s);",
                         (userid, category, amount, desc, created_dt))
-        conn.close()
     except Exception as e:
         print(e)
         print("Insert failed")
+    conn.close()
 
 
 def insertIncome(userid, category, amount, desc, created_dt):
@@ -64,10 +92,10 @@ def insertIncome(userid, category, amount, desc, created_dt):
             cur.execute("INSERT INTO income (userid, category, amount, description, created_dt) "
                         "VALUES (%s, %s, %s, %s, %s);",
                         (userid, category, amount, desc, created_dt))
-        conn.close()
     except Exception as e:
         print(e)
         print("Insert failed")
+    conn.close()
 
 
 def showCatalogueDay(userid, created_dt):
@@ -90,10 +118,10 @@ def showCatalogueDay(userid, created_dt):
             cur.execute("""SELECT * FROM expenses
                         WHERE userid=%s AND created_dt=%s;""", (userid, created_dt))
             res = cur.fetchall()
-        conn.close()
         return res
     except Exception as e:
         print(e)
+    conn.close()
 
 
 def getDaySummary(userid, created_dt):
@@ -122,12 +150,49 @@ def getDaySummary(userid, created_dt):
             cur.execute("""SELECT SUM(amount) as total FROM expenses 
             WHERE userid=%s AND created_dt=%s;""", (userid, prevDate))
             prevDayRes = cur.fetchall()
-        conn.close()
         if prevDayRes[0]['total'] is None:
             prevDayRes = []
         return chosenDayRes, prevDayRes
     except Exception as e:
         print(e)
+    conn.close()
+
+
+def getWeekSummary(userid, selected_date):
+    try:
+        DATABASE_URL = os.environ['DATABASE_URL']
+        conn = pg.connect(
+            DATABASE_URL,
+            sslmode='require'
+        )
+    except Exception as e:
+        conn = pg.connect(
+            host=HOST,
+            database=DATABASE,
+            user=USER,
+            password=PASSWORD
+        )
+    try:
+        conn.set_session(autocommit=True)
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("""SELECT SUM(amount) AS total, category 
+                        FROM expenses WHERE userid=%s AND 
+                        to_char(created_dt, 'iyyy-iw') = to_char(date %s, 'iyyy-iw') 
+                        GROUP BY category;""", (userid, selected_date))
+            chosenWeekRes = cur.fetchall()
+            prevWeekDay = dt.strptime(selected_date, "%Y-%m-%d") - timedelta(days=7)
+            prevWeekDate = prevWeekDay.strftime("%Y-%m-%d")
+            cur.execute("""SELECT SUM(amount) AS total, category 
+                        FROM expenses WHERE userid=%s AND 
+                        to_char(created_dt, 'iyyy-iw') = to_char(date %s, 'iyyy-iw') 
+                        GROUP BY category;""", (userid, prevWeekDate))
+            prevWeekRes = cur.fetchall()
+        if prevWeekRes[0]['total'] is None:
+            prevWeekRes = []
+        return chosenWeekRes, prevWeekRes
+    except Exception as e:
+        print(e)
+    conn.close()
 
 
 def getMonthSummary(userid, year, month):
@@ -166,9 +231,7 @@ def getMonthSummary(userid, year, month):
                         WHERE userid=%s AND created_dt >= %s AND created_dt < %s 
                         GROUP BY category;""", (userid, prev.strftime("%Y-%m-%d"), current.strftime("%Y-%m-%d")))
             prevMonthRes = cur.fetchall()
-        conn.close()
-        # if prevMonthRes[0]['total'] is None:
-        #     prevDayRes = []
         return chosenMonthRes, prevMonthRes
     except Exception as e:
         print(e)
+    conn.close()

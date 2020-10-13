@@ -29,6 +29,13 @@ CREATE TABLE recurring (
 	amount MONEY NOT NULL
 );
 
+#Users
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    userid int NOT NULL,
+    firstName varchar(255) NOT NULL
+);
+
 
 INSERT INTO expenses (userid, category, description, amount, created_dt)
 VALUES (123124, 'food', 'pizza hut', 2.1, '2020-09-19');

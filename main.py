@@ -2,9 +2,10 @@ from datetime import datetime as dt, timedelta
 import configparser as cfg
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
-from pg_connector import insertExpense, insertIncome, showCatalogueDay, getDaySummary, getMonthSummary
-from FAQ import createFAQmessage, FAQ_messages
-from misc import telegramcalendar
+from pg_connector import insertNewUser, insertExpense, insertIncome, showCatalogueDay, getDaySummary, getWeekSummary,\
+    getMonthSummary
+from FAQ import createFAQmessage
+import telegramcalendar
 import telegram
 import os
 
@@ -44,9 +45,19 @@ def raise_start_menu(bot, call):
 
 def createFeedbackMessage():
     msg = "*[Page Unavailable]*\n\n" \
-          "This feature is currently being developed. " \
-          "Please give us some time to fix this. 👨🏻‍💻\n\n" \
+          "This feature is currently being developed, " \
+          "it will be available in a future release. 👨🏻‍💻\n\n" \
           "In the meantime, you may direct all queries and feedback to @hideyukik. Thank you for your patience!"
+    return msg
+
+
+def createAboutMessage():
+    msg = "*About Page*\n\n" \
+          "Name                 ---     AutoFinance Bot\n" \
+          "Version              ---     1.0.0-beta\n" \
+          "Initial release   ---     16th Oct 2020\n"\
+          "Creator              ---     Hideyuki Kanazawa\n" \
+          "Github page     ---     https://github.com/hideyukikanazawa"
     return msg
 
 
@@ -77,12 +88,37 @@ def createDaySummary(date, chosen_day_result, prev_day_result):
         change = "increase"
     elif percentChange < 0:
         change = "decrease"
-    message = f"*[{prettydate(date)}]*\n\n"
+    message = f"*{prettydate(date)}*\n\n"
     message += f"Total spent: *${chosenSum}*\n"
     if percentChange:
-        message += f"This is a *{abs(percentChange):.1f}% {change}* from the previous day - ${prevSum}\n"
+        message += f"This is an approximated *{abs(percentChange):.1f}% {change}* from the previous day - ${prevSum}\n"
     message += "\n"
     for record in chosen_day_result:
+        message += f"Category: {record['category']} - {record['total']}\n"
+    return message
+
+
+def createWeekSummary(date, chosen_week_result, prev_week_result):
+    chosenSum, prevSum, percentChange = 0.0, 0.0, 0.0
+    change = ""
+    for record in chosen_week_result:
+        chosenSum += float(record['total'][1:].replace(",", ""))
+    for record in prev_week_result:
+        prevSum += float(record['total'][1:].replace(",", ""))
+    if chosenSum and prevSum:
+        percentChange = (chosenSum - prevSum)/prevSum * 100
+    if percentChange > 0:
+        change = "increase"
+    elif percentChange < 0:
+        change = "decrease"
+    mondayOfWeek = telegramcalendar.get_monday(date)
+    sundayOfWeek = telegramcalendar.get_sunday(date)
+    message = f"*Week of {shortdate(mondayOfWeek)} - {shortdate(sundayOfWeek)}*\n\n"
+    message += f"Total spent: *${chosenSum}*\n"
+    if percentChange:
+        message += f"This is an approximated *{abs(percentChange):.1f}% {change}* from the previous week - ${prevSum}\n"
+    message += "\n"
+    for record in chosen_week_result:
         message += f"Category: {record['category']} - {record['total']}\n"
     return message
 
@@ -101,10 +137,10 @@ def createMonthSummary(year, month, chosen_month_result, prev_month_result):
         change = "increase"
     elif percentChange < 0:
         change = "decrease"
-    message = f"*[{date.strftime('%b %Y')}]*\n\n"
+    message = f"*{date.strftime('%b %Y')}*\n\n"
     message += f"Total spent: *${chosenSum}*\n"
     if percentChange:
-        message += f"This is a *{abs(percentChange):.1f}% {change}* from the previous month - ${prevSum}\n"
+        message += f"This is an approximated *{abs(percentChange):.1f}% {change}* from the previous month - ${prevSum}\n"
     message += "\n"
     for record in chosen_month_result:
         message += f"Category: {record['category']} - {record['total']}\n"
@@ -123,7 +159,7 @@ def createConfirmMessage(call):
 
 
 user_dict = {}
-ADDOPTIONS = [ "Expense 💸:expense", "Income 💰:income", "Recurring 📆:recurring", "Exit:exit" ]
+ADDOPTIONS = [ "Expense 💸:expense", "Income 💰:income", "Recurring 📆:recurring", "Back:back_to_main_menu" ]
 EXPENSES = ["Dining 🍕:dining", "Retail 👕👗:retail", "Dates 💕:dates", "Transport🚇:transport", "Housing 🏠:housing", "Travel 🏖:travel",
             "Misc:misc", "Exit:exit"]
 INCOMES = [ "Income 💵:income", "Investment 📈:investment", "Bonus 🎁:bonus", "Commission 💎:commission", "Exit:exit" ]
@@ -133,13 +169,13 @@ RECURRING_PLUS = [ "Income 💵:income" ]
 SCHEDULES = [ "Daily:sched_daily", "Weekly:sched_weekly", "Monthly:sched_monthly"]
 DATEOPTIONS = [ "Today:tdy_date", "Yesterday:yst_date", "Custom date 📆:custom_calendar" ]
 CONFIRMOPTIONS = [ "Yes ✔:confirm_yes", "No ❌:confirm_no", "Back 🔙:confirm_back" ]
-SHOWOPTIONS = [ "Summary 📊:show_summary", "Catalogue 📋:show_catalogue", "Exit:exit" ]
+SHOWOPTIONS = [ "Summary 📊:show_summary", "Catalogue 📋:show_catalogue", "Back:back_to_main_menu" ]
 SUMMARYOPTIONS = [ "Daily:summary_day", "Weekly:summary_week", "Monthly:summary_month" ]
-SUMMARYDAYOPTIONS = [ "Select a different date:summary_day", "Done:exit" ]
-SUMMARYWEEKOPTIONS = [ "Select a different week:summary_week", "Done:exit" ]
-SUMMARYMONTHOPTIONS = [ "Select a different month:summary_month", "Done:exit" ]
-RECORDCATALOGUEOPTIONS = [ "By day:catalogue_day" ]
-DAYCATALOGUEOPTIONS = [ "Select a different date:catalogue_day", "Done:exit" ]
+SUMMARYDAYOPTIONS = [ "Select another day:summary_day", "Done:exit" ]
+SUMMARYWEEKOPTIONS = [ "Select another week:summary_week", "Done:exit" ]
+SUMMARYMONTHOPTIONS = [ "Select another month:summary_month", "Done:exit" ]
+RECORDCATALOGUEOPTIONS = [ "By day ☀️:catalogue_day" ]
+DAYCATALOGUEOPTIONS = [ "Select another day:catalogue_day", "Done:exit" ]
 add_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in ADDOPTIONS]
 expense_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="2exp:"+x) for x in EXPENSES]
 income_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="2inc:"+x) for x in INCOMES]
@@ -207,11 +243,12 @@ day_catalogue_markup.row_width = 1
 day_catalogue_markup.add(*day_catalogue_buttons)
 cancel_markup = ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
 cancel_markup.row(cancel_button)
-STARTMENUOPTIONS = [ "Add Entry 🖋", "Show Records 📊", "FAQ ❓", "Give Feedback 📣" ]
+STARTMENUOPTIONS = [ "Add Entry 🖋", "Show Records 🗃", "FAQ ❓", "Give Feedback 📣", "About Page 🗞" ]
 start_menu_buttons = [KeyboardButton(x) for x in STARTMENUOPTIONS]
 start_menu = ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
 start_menu.row(start_menu_buttons[0], start_menu_buttons[1])
 start_menu.row(start_menu_buttons[2], start_menu_buttons[3])
+start_menu.row(start_menu_buttons[4])
 
 
 def isValidCurrency(s):
@@ -224,6 +261,10 @@ def isValidCurrency(s):
 
 def getdbdate(datetime):
     return datetime.strftime("%Y-%m-%d")
+
+
+def shortdate(datetime):
+    return datetime.strftime("%a, %d/%m/%y")
 
 
 def prettydate(datetime):
@@ -242,12 +283,12 @@ def send_welcome(message):
     msg = "Welcome to AutoFinance Bot, {}! 🌈⛈🎉🌹🐧😊\n\n".format(message.chat.first_name)
     msg += "AutoFinance Bot assists you with managing cash flow, helping you focus on a prudent & healthy " \
            "lifestyle 💰💰💰\n\n"
-    msg += ""
+    insertNewUser(int(message.chat.id), message.chat.first_name)
     bot.send_message(message.chat.id, msg)
 
 
 @bot.message_handler(commands=['help'])
-def send_welcome(message):
+def send_help(message):
     msg = "Hey {}! 😊\n\n".format(message.chat.first_name)
     msg += "All the commands you need can be found here: "
     msg += "/add Add a new expense or income"
@@ -273,18 +314,24 @@ def show_feedback(message):
                    caption=msg,
                    parse_mode=telegram.ParseMode.MARKDOWN,
                    reply_markup=start_menu)
-    # bot.send_message(message.chat.id,
-    #                  text=msg,
-    #                  reply_markup=start_menu,
-    #                  parse_mode=telegram.ParseMode.MARKDOWN)
-#
 
-@bot.message_handler(regexp="Show Records 📊")
+
+@bot.message_handler(regexp="About Page 🗞")
+def show_feedback(message):
+    msg = createAboutMessage()
+    bot.send_chat_action(message.chat.id, 'typing')
+    bot.send_message(chat_id=message.chat.id,
+                     text=msg,
+                     parse_mode=telegram.ParseMode.MARKDOWN,
+                     reply_markup=start_menu)
+
+
+@bot.message_handler(regexp="Show Records 🗃")
 @bot.message_handler(commands=['show'])
 def show_record_menu(message):
     if message.chat.id not in user_dict.keys():
         user_dict[message.chat.id] = {}
-    text = f"Heyo {message.chat.first_name}⭐️\n\n" \
+    text = f"Heyo {message.chat.first_name} ⭐️\n\n" \
            f"*Summary* provides an overview of your expenses on a daily, weekly or monthly basis. \n\n" \
            f"*Catalogue* provides a list of records and helps you remember how many satays you munched on cheat day " \
            f"😉 don't worry, its a secret between us.\n\n" \
@@ -305,10 +352,20 @@ def exit(call):
     raise_start_menu(bot, call)
 
 
+@bot.callback_query_handler(lambda query: query.data == "back_to_main_menu")
+def back_to_main_menu(call):
+    bot.edit_message_text(chat_id=call.message.chat.id,
+                          text="Going back in time",
+                          message_id=call.message.message_id,
+                          parse_mode=telegram.ParseMode.MARKDOWN
+    )
+    raise_start_menu(bot, call)
+
+
 @bot.callback_query_handler(lambda query: query.data == "show_summary")
 def show_summary(call):
     user_dict[call.message.chat.id]["show_type"] = "show_summary"
-    text = "*[Summary]*\n\n" \
+    text = "*Summary 📊*\n\n" \
            "Please select the time range of your summary!\n"
     bot.edit_message_text(chat_id=call.message.chat.id,
                           text=text,
@@ -332,7 +389,7 @@ def show_calendar_day(call):
                               )
     if call.data == "summary_week":
         text = "*Shift between months and select a date to get the whole week 📅*\n"
-        text += "Note: Weeks go from Mon - Sun"
+        text += "Note - Weeks start on Monday"
         bot.edit_message_text(chat_id=call.message.chat.id,
                               text=text,
                               message_id=call.message.message_id,
@@ -352,8 +409,8 @@ def show_calendar_day(call):
 @bot.callback_query_handler(lambda query: query.data == "show_catalogue")
 def show_catalogue(call):
     user_dict[call.message.chat.id]["show_type"] = call.data
-    text = "*[Catalogue]*\n\n" \
-           "Please select which records you want to list out!\n"
+    text = "*Catalogue 📋*\n\n" \
+           "Please select how you want your records to be listed.\n"
     bot.edit_message_text(chat_id=call.message.chat.id,
                           text=text,
                           message_id=call.message.message_id,
@@ -491,9 +548,6 @@ def process_amount(message):
         ReplyKeyboardMarkup()
         bot.register_next_step_handler(msg, process_amount)
         return
-    # bot.edit_message_text(chat_id=message.chat.id,
-    #                       message_id=user_dict[message.chat.id]["lastAdd"],
-    #                       text=f"Valid amount: ${float(amount):.2f}")
     user_dict[message.chat.id]["amount"] = float(amount)
     msg = bot.send_message(message.chat.id,
                            text=f"*Valid amount: ${float(amount):.2f}*\n\n"
@@ -567,19 +621,32 @@ def process_calendar(call):
                                     parse_mode=telegram.ParseMode.MARKDOWN)
         user_dict[call.message.chat.id]["lastAdd"] = msg.message_id
     if selected and prev_action == "catalogue_day":
+        bot.send_chat_action(call.message.chat.id, 'typing', timeout=1.5)
         results = showCatalogueDay(call.message.chat.id, getdbdate(date))
         reply_text = createDayCatalogueMessage(date, results)
-        bot.send_message(call.message.chat.id,
-                               text=reply_text,
-                               reply_markup=day_catalogue_markup,
-                               parse_mode=telegram.ParseMode.MARKDOWN)
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              text=reply_text,
+                              reply_markup=day_catalogue_markup,
+                              parse_mode=telegram.ParseMode.MARKDOWN)
     if selected and prev_action == "summary_day":
+        bot.send_chat_action(call.message.chat.id, 'typing')
         chosenDayResult, prevDayResult = getDaySummary(call.message.chat.id, getdbdate(date))
         reply_text = createDaySummary(date, chosenDayResult, prevDayResult)
-        bot.send_message(call.message.chat.id,
-                         text=reply_text,
-                         reply_markup=summary_day_markup,
-                         parse_mode=telegram.ParseMode.MARKDOWN)
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              text=reply_text,
+                              reply_markup=summary_day_markup,
+                              parse_mode=telegram.ParseMode.MARKDOWN)
+    if selected and prev_action == "summary_week":
+        bot.send_chat_action(call.message.chat.id, 'typing')
+        chosenWeekResult, prevWeekResult = getWeekSummary(call.message.chat.id, getdbdate(date))
+        reply_text = createWeekSummary(date, chosenWeekResult, prevWeekResult)
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              text=reply_text,
+                              reply_markup=summary_week_markup,
+                              parse_mode=telegram.ParseMode.MARKDOWN)
 
 
 @bot.callback_query_handler(lambda query: query.data.startswith("MONTH-IGNORE") or query.data.startswith("SELECT-MONTH")
@@ -587,12 +654,14 @@ def process_calendar(call):
 def process_calendar(call):
     selected, year, month, prev_action = telegramcalendar.process_month_selection(bot, call, user_dict)
     if selected and prev_action == "summary_month":
+        bot.send_chat_action(call.message.chat.id, 'typing')
         chosenMonthResult, prevMonthResult = getMonthSummary(call.message.chat.id, year, month)
         reply_text = createMonthSummary(year, month, chosenMonthResult, prevMonthResult)
-        msg = bot.send_message(call.message.chat.id,
-                               text=reply_text,
-                               reply_markup=summary_month_markup,
-                               parse_mode=telegram.ParseMode.MARKDOWN)
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              message_id=call.message.message_id,
+                              text=reply_text,
+                              reply_markup=summary_month_markup,
+                              parse_mode=telegram.ParseMode.MARKDOWN)
 
 
 @bot.callback_query_handler(lambda query: query.data in [ "confirm_yes", "confirm_no" ])
@@ -647,7 +716,7 @@ def show_start_menu(message):
         msg = f"Let's start over 👌\n\n" \
               f"Please select one of the available commands below 🔽"
     else:
-        msg = f"Hey {message.chat.first_name}, we didn't catch that! 🤦🏻‍♂️🤦🏻‍♀️\n\n"
+        msg = f"Sorry {message.chat.first_name}, we didn't catch that! 🤦🏻‍♂️🤦🏻‍♀️\n\n"
         msg += "Perhaps you could try one of the available commands below 🔽\n\n"
     bot.send_message(message.chat.id,
                      text=msg,
