@@ -46,6 +46,8 @@
 
 - Major
     - Have to handle dictionary key errors upon restart
+    - Enable feature to check if records >= 3, stop inserting
+    - Should show user how many daily free entries left
 - Minor
     - Recurring entries not complete
     - There should be indicator to know if expense/incomes are recurring or not (True/False boolean)

@@ -45,19 +45,19 @@ def raise_start_menu(bot, call):
 
 def createFeedbackMessage():
     msg = "*[Page Unavailable]*\n\n" \
-          "This feature is currently being developed, " \
-          "it will be available in a future release. 👨🏻‍💻\n\n" \
+          "This feature is currently in development, " \
+          "look forward to it in a future release. 👨🏻‍💻\n\n" \
           "In the meantime, you may direct all queries and feedback to @hideyukik. Thank you for your patience!"
     return msg
 
 
 def createAboutMessage():
     msg = "*About Page*\n\n" \
-          "Name                 ---     AutoFinance Bot\n" \
-          "Version              ---     1.0.0-beta\n" \
-          "Initial release   ---     16th Oct 2020\n"\
-          "Creator              ---     Hideyuki Kanazawa\n" \
-          "Github page     ---     https://github.com/hideyukikanazawa"
+          "Name               ---     AutoFinance Bot\n" \
+          "Version            ---     1.0.0-beta\n" \
+          "Initial release ---     16th Oct 2020\n"\
+          "Creator            ---     Hideyuki Kanazawa\n" \
+          "Github page   ---     https://github.com/hideyukikanazawa"
     return msg
 
 
@@ -89,9 +89,9 @@ def createDaySummary(date, chosen_day_result, prev_day_result):
     elif percentChange < 0:
         change = "decrease"
     message = f"*{prettydate(date)}*\n\n"
-    message += f"Total spent: *${chosenSum}*\n"
+    message += f"Total spent: *${chosenSum:.2f}*\n"
     if percentChange:
-        message += f"This is an approximated *{abs(percentChange):.1f}% {change}* from the previous day - ${prevSum}\n"
+        message += f"This is an approximated *{abs(percentChange):.1f}% {change}* from the previous day - ${prevSum:.2f}\n"
     message += "\n"
     for record in chosen_day_result:
         message += f"Category: {record['category']} - {record['total']}\n"
@@ -114,9 +114,9 @@ def createWeekSummary(date, chosen_week_result, prev_week_result):
     mondayOfWeek = telegramcalendar.get_monday(date)
     sundayOfWeek = telegramcalendar.get_sunday(date)
     message = f"*Week of {shortdate(mondayOfWeek)} - {shortdate(sundayOfWeek)}*\n\n"
-    message += f"Total spent: *${chosenSum}*\n"
+    message += f"Total spent: *${chosenSum:.2f}*\n"
     if percentChange:
-        message += f"This is an approximated *{abs(percentChange):.1f}% {change}* from the previous week - ${prevSum}\n"
+        message += f"This is an approximated *{abs(percentChange):.1f}% {change}* from the previous week - ${prevSum:.2f}\n"
     message += "\n"
     for record in chosen_week_result:
         message += f"Category: {record['category']} - {record['total']}\n"
@@ -138,9 +138,9 @@ def createMonthSummary(year, month, chosen_month_result, prev_month_result):
     elif percentChange < 0:
         change = "decrease"
     message = f"*{date.strftime('%b %Y')}*\n\n"
-    message += f"Total spent: *${chosenSum}*\n"
+    message += f"Total spent: *${chosenSum:.2f}*\n"
     if percentChange:
-        message += f"This is an approximated *{abs(percentChange):.1f}% {change}* from the previous month - ${prevSum}\n"
+        message += f"This is an approximated *{abs(percentChange):.1f}% {change}* from the previous month - ${prevSum:.2f}\n"
     message += "\n"
     for record in chosen_month_result:
         message += f"Category: {record['category']} - {record['total']}\n"
@@ -359,7 +359,7 @@ def exit(call):
 @bot.callback_query_handler(lambda query: query.data == "back_to_main_menu")
 def back_to_main_menu(call):
     bot.edit_message_text(chat_id=call.message.chat.id,
-                          text="Going back in time",
+                          text="Going back in time..",
                           message_id=call.message.message_id,
                           parse_mode=telegram.ParseMode.MARKDOWN
     )
@@ -484,7 +484,9 @@ def income_query(call):
                               text="{} selected".format(niceCat.capitalize()),
                               message_id=call.message.message_id)
         user_dict[call.message.chat.id]["category"] = category
-        msg = bot.send_message(call.message.chat.id, text="Please enter an amount 💵 :")
+        msg = bot.send_message(call.message.chat.id,
+                               text="Please enter an amount 💵 :",
+                               reply_markup=cancel_markup)
         user_dict[call.message.chat.id]["lastAdd"] = msg.message_id
         bot.register_next_step_handler(msg, process_amount)
 
