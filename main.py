@@ -3,7 +3,7 @@ import configparser as cfg
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from pg_connector import insertNewUser, insertExpense, insertIncome, showCatalogueDay, getDaySummary, getWeekSummary,\
-    getMonthSummary, checkPremium, checkDailyLimit, checkValidPromocode
+    getMonthSummary, checkPremium, checkDailyLimit, checkValidPromocode, updatePCStatus, upgradeToPremium
 from FAQ import createFAQmessage
 import telegramcalendar
 import telegram
@@ -65,6 +65,20 @@ def createPremiumMessage():
           "- Additional features to be added *soon*\n" \
           "- Between you and me, I highly recommend not to purchase premium yet! ✋\n\n" \
           "Please select how you want to proceed ✔️"
+    return msg
+
+
+def createPremiumUserMessage():
+    msg = "*Welcome Premium User*☄️\n\n" \
+          "We look forward to serving you better in the near future.\n" \
+          "Thank you very much for your kind support ☺️\n"
+    return msg
+
+
+def createSuccessPremiumMessage(first_name):
+    msg = f"🌟*Promo code successfully applied*🌟\n\n" \
+          f"Congratulations, {first_name}! You now have access to all Premium features.\n" \
+          f"Thank you for the kind support! ☺️"
     return msg
 
 
@@ -273,6 +287,8 @@ premium_markup.row_width = 2
 premium_markup.add(*premium_buttons)
 cancel_markup = ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
 cancel_markup.row(cancel_button)
+exit_markup = InlineKeyboardMarkup()
+exit_markup.add(EXIT_BUTTON)
 STARTMENUOPTIONS = [ "Add Entry 🖋", "Show Records 🗃", "FAQ ❓", "Give Feedback 📣", "Upgrade to Premium 💎", "About Page 🗞" ]
 start_menu_buttons = [KeyboardButton(x) for x in STARTMENUOPTIONS]
 start_menu = ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
@@ -349,19 +365,41 @@ def show_feedback(message):
 
 @bot.message_handler(regexp="Upgrade to Premium 💎")
 def show_premium(message):
-    msg = createPremiumMessage()
-    bot.send_chat_action(message.chat.id, 'typing')
-    bot.send_message(chat_id=message.chat.id,
-                     text=msg,
-                     parse_mode=telegram.ParseMode.MARKDOWN,
-                     reply_markup=premium_markup
-    )
+    insertNewUser(message.chat.id, message.chat.first_name)
+    try:
+        userid = message.chat.id
+        bot.send_chat_action(message.chat.id, 'typing')
+        userIsPremium, error = checkPremium(userid)
+        if userIsPremium:
+            bot.send_message(chat_id=message.chat.id,
+                             text=createPremiumUserMessage(),
+                             parse_mode=telegram.ParseMode.MARKDOWN,
+                             reply_markup=start_menu)
+        else:
+            bot.send_message(chat_id=message.chat.id,
+                             text=createPremiumMessage(),
+                             parse_mode=telegram.ParseMode.MARKDOWN,
+                             reply_markup=premium_markup
+            )
+    except:
+        back_to_main_menu_message(message)
+        return
+
+
+@bot.callback_query_handler(lambda query: query.data == "paylah_payment")
+def paylah_input(call):
+    bot.edit_message_text(chat_id=call.message.chat.id,
+                          text="*PayLah Option Selected*\n\n"
+                               "This feature is not ready yet.",
+                          reply_markup=exit_markup,
+                          message_id=call.message.message_id,
+                          parse_mode=telegram.ParseMode.MARKDOWN)
 
 
 @bot.callback_query_handler(lambda query: query.data == "promocode_payment")
 def promocode_input(call):
     bot.edit_message_text(chat_id=call.message.chat.id,
-                          text="*Promo code selected*",
+                          text="*[Promo code selected]*",
                           message_id=call.message.message_id,
                           parse_mode=telegram.ParseMode.MARKDOWN)
     msg = bot.send_message(chat_id=call.message.chat.id,
@@ -374,24 +412,37 @@ def promocode_input(call):
 
 def process_promocode(message):
     promocode = message.text
+    userid = message.chat.id
+    firstname = message.chat.first_name
     isValidPC, notExistPC = checkValidPromocode(promocode)
+    if promocode in commands.keys():
+        runcommand(commands[promocode], message)
+        return
     if notExistPC:
         msg = bot.send_message(chat_id=message.chat.id,
-                               text=f"Invalid promo code [{promocode}]!\n"
-                                    f"Please try again 😅",
-                               reply_markup=cancel_markup)
+                               text=f"Invalid promo code - *[{promocode}]*\n\n"
+                                    f"Please try again 🎁",
+                               reply_markup=cancel_markup,
+                               parse_mode=telegram.ParseMode.MARKDOWN)
         bot.register_next_step_handler(msg, process_promocode)
         return
     if not isValidPC:
         msg = bot.send_message(chat_id=message.chat.id,
-                               text=f"Promo code [{promocode}] has been used!\n"
-                                    f"Please try again 😅",
-                               reply_markup=cancel_markup)
+                               text=f"Promo code *[{promocode}]* has already been used!\n\n"
+                                    f"Please try again 🎁",
+                               reply_markup=cancel_markup,
+                               parse_mode=telegram.ParseMode.MARKDOWN)
         bot.register_next_step_handler(msg, process_promocode)
         return
 
-    
+    updatePCStatus(promocode, userid)
+    upgradeToPremium(userid)
 
+    msg = createSuccessPremiumMessage(firstname)
+    bot.send_message(chat_id=message.chat.id,
+                     text=msg,
+                     parse_mode=telegram.ParseMode.MARKDOWN,
+                     reply_markup=start_menu)
 
 
 @bot.message_handler(regexp="About Page 🗞")
@@ -422,12 +473,16 @@ def show_record_menu(message):
 
 @bot.callback_query_handler(lambda query: query.data == "exit")
 def exit(call):
-    bot.edit_message_text(chat_id=call.message.chat.id,
-                          text="Whenever you're ready!🙇‍♂",
-                          message_id=call.message.message_id,
-                          parse_mode=telegram.ParseMode.MARKDOWN
-    )
-    raise_start_menu(bot, call)
+    try:
+        bot.edit_message_text(chat_id=call.message.chat.id,
+                              text="Whenever you're ready!🙇‍♂",
+                              message_id=call.message.message_id,
+                              parse_mode=telegram.ParseMode.MARKDOWN
+        )
+        raise_start_menu(bot, call)
+    except:
+        back_to_main_menu(call)
+        return
 
 
 @bot.callback_query_handler(lambda query: query.data == "back_to_main_menu")

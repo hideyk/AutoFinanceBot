@@ -43,7 +43,7 @@ CREATE TABLE promocodes (
     promocode varchar(255) NOT NULL,
     userid int DEFAULT NULL,
     used boolean DEFAULT False
-)
+);
 
 
 INSERT INTO expenses (userid, category, description, amount, created_dt)

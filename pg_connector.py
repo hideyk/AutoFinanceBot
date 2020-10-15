@@ -47,6 +47,29 @@ def insertNewUser(userid, firstname):
     conn.close()
 
 
+def updatePCStatus(promocode, userid):
+    try:
+        DATABASE_URL = os.environ['DATABASE_URL']
+        conn = pg.connect(
+            DATABASE_URL,
+            sslmode='require'
+        )
+    except Exception as e:
+        conn = pg.connect(
+            host=HOST,
+            database=DATABASE,
+            user=USER,
+            password=PASSWORD
+        )
+    try:
+        conn.set_session(autocommit=True)
+        with conn.cursor() as cur:
+            cur.execute("UPDATE promocodes SET userid=%s, used=True WHERE promocode=%s;", (userid, promocode))
+    except Exception as e:
+        print(e)
+    conn.close()
+
+
 def upgradeToPremium(userid):
     try:
         DATABASE_URL = os.environ['DATABASE_URL']
@@ -64,20 +87,10 @@ def upgradeToPremium(userid):
     try:
         conn.set_session(autocommit=True)
         with conn.cursor() as cur:
-            cur.execute("SELECT isPremium FROM users WHERE userid=%s;", [userid])
-            result = cur.fetchall()
-            if not result:
-                conn.close()
-                return False, True
-            userIsPremium = result[0][0]
-            if not userIsPremium:
-                conn.close()
-                return False, False
-            else:
-                conn.close()
-                return True, False
+            cur.execute("UPDATE users SET isPremium=True WHERE userid=%s;", [userid])
     except Exception as e:
         print(e)
+    conn.close()
 
 
 def checkPremium(userid):
