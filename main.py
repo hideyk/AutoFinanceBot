@@ -71,7 +71,7 @@ def createPremiumMessage():
 def createPremiumUserMessage():
     msg = "*Welcome Premium User*☄️\n\n" \
           "We look forward to serving you better in the near future.\n" \
-          "Thank you very much for your kind support ☺️\n"
+          "Thank you very much for your continuous support ☺️\n"
     return msg
 
 
@@ -389,8 +389,8 @@ def show_premium(message):
 @bot.callback_query_handler(lambda query: query.data == "paylah_payment")
 def paylah_input(call):
     bot.edit_message_text(chat_id=call.message.chat.id,
-                          text="*PayLah Option Selected*\n\n"
-                               "This feature is not ready yet.",
+                          text="📲*PayLah Option Selected*📲\n\n"
+                               "This feature is not ready yet.\n",
                           reply_markup=exit_markup,
                           message_id=call.message.message_id,
                           parse_mode=telegram.ParseMode.MARKDOWN)
@@ -420,7 +420,8 @@ def process_promocode(message):
         return
     if notExistPC:
         msg = bot.send_message(chat_id=message.chat.id,
-                               text=f"Invalid promo code - *[{promocode}]*\n\n"
+                               text=f"Invalid promo code: \n"
+                                    f"*[{promocode}]*\n\n"
                                     f"Please try again 🎁",
                                reply_markup=cancel_markup,
                                parse_mode=telegram.ParseMode.MARKDOWN)
