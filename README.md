@@ -45,10 +45,10 @@
 <h4>Bugs</h4>
 
 - Major
-    - Have to handle dictionary key errors upon restart
+    - ** Have to handle dictionary key errors upon restart **
     - Enable feature to check if records >= 3, stop inserting
     - Should show user how many daily free entries left
-    - Handle datetime timezone (US --> SG))
+    - 	~~ Handle datetime timezone (US --> SG))	~~
 - Minor
     - Recurring entries not complete
     - There should be indicator to know if expense/incomes are recurring or not (True/False boolean)

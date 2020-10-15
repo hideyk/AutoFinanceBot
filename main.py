@@ -648,7 +648,7 @@ def process_date(call):
                                   text="Let's select a date again 📅",
                                   reply_markup=date_markup)
             return
-        now = dt.now()
+        now = dt.utcnow() + timedelta(hours=8)
         if call.data == "yst_date":
             now -= timedelta(days=1)
         if call.data.endswith("date"):
