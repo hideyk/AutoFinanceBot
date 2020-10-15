@@ -3,7 +3,7 @@ import configparser as cfg
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from pg_connector import insertNewUser, insertExpense, insertIncome, showCatalogueDay, getDaySummary, getWeekSummary,\
-    getMonthSummary
+    getMonthSummary, checkPremium, checkDailyLimit, checkValidPromocode
 from FAQ import createFAQmessage
 import telegramcalendar
 import telegram
@@ -17,7 +17,7 @@ except Exception as e:
     api_token = config.get("creds", "token")
 
 bot = telebot.TeleBot(api_token, parse_mode=None)
-
+RECORDLIMIT=3
 
 commands = {  # command description used in the "help" command
     '/start'       : 'send_welcome',
@@ -54,6 +54,17 @@ def createFeedbackMessage():
           "This feature is currently in development, " \
           "look forward to it in a future release. 👨🏻‍💻\n\n" \
           "In the meantime, you may direct all queries and feedback to @hideyukik. Thank you for your patience!"
+    return msg
+
+
+def createPremiumMessage():
+    msg = "*Upgrade to Premium*\n\n" \
+          "For a reasonable price of *SGD 3.90* (one-time payment), " \
+          "look forward to the following extended features:\n\n" \
+          "- Unlimited expense and income entries per day 😎\n" \
+          "- Additional features to be added *soon*\n" \
+          "- Between you and me, I highly recommend not to purchase premium yet! ✋\n\n" \
+          "Please select how you want to proceed ✔️"
     return msg
 
 
@@ -169,6 +180,7 @@ ADDOPTIONS = [ "Expense 💸:expense", "Income 💰:income", "Recurring 📆:rec
 EXPENSES = ["Dining 🍕:dining", "Fitness 🧗:fitness", "Retail 👜:retail", "Dates 💕:dates", "Transport🚇:transport", "Housing 🏠:housing", "Leisure 🏖:leisure",
             "▪️Misc▪️:misc"]
 INCOMES = [ "Income 💵:income", "Investment 📈:investment", "Bonus 🎁:bonus", "Commission 💎:commission" ]
+REACHLIMIT = [ "Back 🔙:confirm_back", "Cancel:exit" ]
 PLUS_MINUS = [ "Cash flow in 🔼:plus", "Cash flow out🔽:minus" ]
 RECURRING_MINUS = [ "Housing 🏠:housing", "Income 💵:income", "Bills 📱:bills", "Subscriptions 📦:subscriptions", "Insurance 🩹:insurance" ]
 RECURRING_PLUS = [ "Income 💵:income" ]
@@ -182,9 +194,11 @@ SUMMARYWEEKOPTIONS = [ "Select another week:summary_week", "Done:exit" ]
 SUMMARYMONTHOPTIONS = [ "Select another month:summary_month", "Done:exit" ]
 RECORDCATALOGUEOPTIONS = [ "By day ☀️:catalogue_day" ]
 DAYCATALOGUEOPTIONS = [ "Select another day:catalogue_day", "Done:exit" ]
+PREMIUMOPTIONS = [ "PayLah 📲:paylah_payment", "Promo Code 🎁:promocode_payment", "Back:back_to_main_menu" ]
 add_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in ADDOPTIONS]
 expense_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="2exp:"+x) for x in EXPENSES]
 income_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="2inc:"+x) for x in INCOMES]
+reach_limit_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in REACHLIMIT]
 plusminus_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="2rec:"+x) for x in PLUS_MINUS]
 recminus_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="3rec:"+x.split(":")[1]) for x in RECURRING_MINUS]
 recplus_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data="3rec:"+x.split(":")[1]) for x in RECURRING_PLUS]
@@ -198,6 +212,7 @@ summary_week_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.sp
 summary_month_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in SUMMARYMONTHOPTIONS]
 record_catalogue_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in RECORDCATALOGUEOPTIONS]
 day_catalogue_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in DAYCATALOGUEOPTIONS]
+premium_buttons = [InlineKeyboardButton(x.split(":")[0], callback_data=x.split(":")[1]) for x in PREMIUMOPTIONS]
 cancel_button = KeyboardButton('Cancel')
 add_markup = InlineKeyboardMarkup()
 add_markup.row_width = 2
@@ -210,6 +225,9 @@ inc_markup = InlineKeyboardMarkup()
 inc_markup.row_width = 2
 inc_markup.add(*income_buttons)
 inc_markup.add(EXIT_BUTTON)
+reach_limit_markup = InlineKeyboardMarkup()
+reach_limit_markup.row_width = 1
+reach_limit_markup.add(*reach_limit_buttons)
 plusminus_markup = InlineKeyboardMarkup()
 plusminus_markup.row_width = 1
 plusminus_markup.add(*plusminus_buttons)
@@ -250,14 +268,18 @@ record_catalogue_markup.add(*record_catalogue_buttons)
 day_catalogue_markup = InlineKeyboardMarkup()
 day_catalogue_markup.row_width = 1
 day_catalogue_markup.add(*day_catalogue_buttons)
+premium_markup = InlineKeyboardMarkup()
+premium_markup.row_width = 2
+premium_markup.add(*premium_buttons)
 cancel_markup = ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
 cancel_markup.row(cancel_button)
-STARTMENUOPTIONS = [ "Add Entry 🖋", "Show Records 🗃", "FAQ ❓", "Give Feedback 📣", "About Page 🗞" ]
+STARTMENUOPTIONS = [ "Add Entry 🖋", "Show Records 🗃", "FAQ ❓", "Give Feedback 📣", "Upgrade to Premium 💎", "About Page 🗞" ]
 start_menu_buttons = [KeyboardButton(x) for x in STARTMENUOPTIONS]
 start_menu = ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
 start_menu.row(start_menu_buttons[0], start_menu_buttons[1])
 start_menu.row(start_menu_buttons[2], start_menu_buttons[3])
 start_menu.row(start_menu_buttons[4])
+start_menu.row(start_menu_buttons[5])
 
 
 def isValidCurrency(s):
@@ -299,9 +321,9 @@ def send_welcome(message):
 @bot.message_handler(commands=['help'])
 def send_help(message):
     msg = "Hey {}! 😊\n\n".format(message.chat.first_name)
-    msg += "All the commands you need can be found here: "
-    msg += "/add Add a new expense or income"
-    msg += "/start Describes the bot"
+    msg += "All the commands you need can be found here: \n"
+    msg += "/start Describes the bot\n"
+    msg += "/add Add a new expense or income\n"
     bot.send_message(message.chat.id, msg)
 
 
@@ -325,8 +347,55 @@ def show_feedback(message):
                    reply_markup=start_menu)
 
 
+@bot.message_handler(regexp="Upgrade to Premium 💎")
+def show_premium(message):
+    msg = createPremiumMessage()
+    bot.send_chat_action(message.chat.id, 'typing')
+    bot.send_message(chat_id=message.chat.id,
+                     text=msg,
+                     parse_mode=telegram.ParseMode.MARKDOWN,
+                     reply_markup=premium_markup
+    )
+
+
+@bot.callback_query_handler(lambda query: query.data == "promocode_payment")
+def promocode_input(call):
+    bot.edit_message_text(chat_id=call.message.chat.id,
+                          text="*Promo code selected*",
+                          message_id=call.message.message_id,
+                          parse_mode=telegram.ParseMode.MARKDOWN)
+    msg = bot.send_message(chat_id=call.message.chat.id,
+                          text="Please enter a valid promo code 🎁:",
+                          parse_mode=telegram.ParseMode.MARKDOWN,
+                          reply_markup=cancel_markup
+    )
+    bot.register_next_step_handler(msg, process_promocode)
+
+
+def process_promocode(message):
+    promocode = message.text
+    isValidPC, notExistPC = checkValidPromocode(promocode)
+    if notExistPC:
+        msg = bot.send_message(chat_id=message.chat.id,
+                               text=f"Invalid promo code [{promocode}]!\n"
+                                    f"Please try again 😅",
+                               reply_markup=cancel_markup)
+        bot.register_next_step_handler(msg, process_promocode)
+        return
+    if not isValidPC:
+        msg = bot.send_message(chat_id=message.chat.id,
+                               text=f"Promo code [{promocode}] has been used!\n"
+                                    f"Please try again 😅",
+                               reply_markup=cancel_markup)
+        bot.register_next_step_handler(msg, process_promocode)
+        return
+
+    
+
+
+
 @bot.message_handler(regexp="About Page 🗞")
-def show_feedback(message):
+def show_about_page(message):
     msg = createAboutMessage()
     bot.send_chat_action(message.chat.id, 'typing', timeout=2)
     bot.send_message(chat_id=message.chat.id,
@@ -598,7 +667,6 @@ def process_amount(message):
                                             f"Invalid value: {amount}\n"
                                             f"Please enter an amount again 😅",
                                         reply_markup=cancel_markup)
-            ReplyKeyboardMarkup()
             bot.register_next_step_handler(msg, process_amount)
             return
         user_dict[message.chat.id]["amount"] = float(amount)
@@ -734,43 +802,68 @@ def process_calendar(call):
 @bot.callback_query_handler(lambda query: query.data in [ "confirm_yes", "confirm_no" ])
 def confirm_entry(call):
     try:
+        userid = call.message.chat.id
         confirm = call.data
         if confirm == "confirm_yes":
             input_type = user_dict[call.message.chat.id]["type"]
             if input_type == "expense" or input_type == "income":
-                category = user_dict[call.message.chat.id]["category"]
-                amount = user_dict[call.message.chat.id]["amount"]
-                desc = user_dict[call.message.chat.id]["desc"]
-                datetime = user_dict[call.message.chat.id]["datetime"]
+                category = user_dict[userid]["category"]
+                amount = user_dict[userid]["amount"]
+                desc = user_dict[userid]["desc"]
+                datetime = user_dict[userid]["datetime"]
                 cleandt = getdbdate(datetime)
+                prettydt = prettydate(datetime)
+
+                userIsPremium, error = checkPremium(userid)
+                if error:
+                    insertNewUser(userid, call.message.chat.first_name)
+                if not userIsPremium:
+                    numberOfRecords = checkDailyLimit(input_type, userid, cleandt)
+                    if numberOfRecords >= RECORDLIMIT:
+                        bot.answer_callback_query(callback_query_id=call.id,
+                                                  show_alert=True,
+                                                  text=f"Exceeded Limit: {RECORDLIMIT} ❌")
+                        bot.edit_message_text(chat_id=userid,
+                                              message_id=call.message.message_id,
+                                              reply_markup=reach_limit_markup,
+                                              text=f"*[Exceeded Limit]* {prettydt}\n\n"
+                                                   f"Users on free tier are eligible to have {RECORDLIMIT} records on each day.\n"
+                                                   f"*Upgrade to Premium💎* to enjoy unlimited daily records.",
+                                              parse_mode=telegram.ParseMode.MARKDOWN)
+                        return
+
                 if input_type == "expense":
-                    insertExpense(call.message.chat.id, category, amount, desc, cleandt)
+                    error = insertExpense(userid, category, amount, desc, cleandt)
                     insertType = "Expense"
                 else:
-                    insertIncome(call.message.chat.id, category, amount, desc, cleandt)
+                    error = insertIncome(userid, category, amount, desc, cleandt)
                     insertType = "Income"
 
-                final_msg = f"*[{insertType} successfully added]*🎉\n" \
-                            f"Category:       {category.capitalize()}\n" \
-                            f"Amount:         ${amount:.2f}\n" \
-                            f"Description:    {desc}\n\n" \
-                            f"/add another entry?"
-                bot.answer_callback_query(callback_query_id=call.id,
-                                          show_alert=True,
-                                          text="Entry successfully added 🎉")
-                bot.edit_message_text(chat_id=call.message.chat.id,
+                if not error:
+                    final_msg = f"*[{insertType} successfully added]*🎉\n" \
+                                f"Category:       {category.capitalize()}\n" \
+                                f"Amount:         ${amount:.2f}\n" \
+                                f"Description:    {desc}\n\n" \
+                                f"/add another entry?"
+                    bot.answer_callback_query(callback_query_id=call.id,
+                                              show_alert=True,
+                                              text="Entry successfully added 🎉")
+                else:
+                    final_msg = f"*[{insertType} not added]*🎉\n\n" \
+                                f"Something is not right 😰"
+
+                bot.edit_message_text(chat_id=userid,
                                       message_id=call.message.message_id,
                                       text=final_msg,
                                       parse_mode=telegram.ParseMode.MARKDOWN)
                 raise_start_menu(bot, call)
-                user_dict[call.message.chat.id] = {}
-
+                user_dict[userid] = {}
                 return
             elif input_type == "recurring":
                 pass
 
         elif confirm == "confirm_no":
-            bot.edit_message_text(chat_id=call.message.chat.id,
+            bot.edit_message_text(chat_id=userid,
                                   text="Entry not added.\n"
                                        "Whenever you're ready!🙇‍♂",
                                   message_id=call.message.message_id)

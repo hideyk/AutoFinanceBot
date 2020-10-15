@@ -33,8 +33,17 @@ CREATE TABLE recurring (
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     userid int NOT NULL,
-    firstName varchar(255) NOT NULL
+    firstName varchar(255) NOT NULL,
+    joinDate date NOT NULL,
+    isPremium boolean DEFAULT False
 );
+
+CREATE TABLE promocodes (
+    id SERIAL PRIMARY KEY,
+    promocode varchar(255) NOT NULL,
+    userid int DEFAULT NULL,
+    used boolean DEFAULT False
+)
 
 
 INSERT INTO expenses (userid, category, description, amount, created_dt)
@@ -45,6 +54,9 @@ VALUES (123124, 'dividend', 'dbs', 2.1, '2020-09-19');
 
 INSERT INTO recurring (userid, type, schedule, description, amount)
 VALUES (123124, '+', 10, 'salary', 2.1);
+
+INSERT INTO users (userid, firstname, joindate)
+VALUES (137906605, 'Hidey', '2020-10-15');
 
 #heroku pg:psql postgresql-metric-50747 --app autofinance-bot
 
@@ -59,3 +71,10 @@ SELECT * FROM expenses;
 SELECT SUM(amount) as total, category FROM expenses WHERE userid=137906605 AND created_dt >= '2020-10-01' AND created_dt < '2020-11-01' GROUP BY category;
 
 SELECT amount FROM expenses WHERE category LIKE 'a%'
+
+SELECT isPremium FROM users WHERE userid=137906605
+
+SELECT used FROM promocodes WHERE promocode='';
+
+INSERT INTO promocodes (promocode)
+VALUES ('DBS-HIDEYUKI')

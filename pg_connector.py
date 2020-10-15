@@ -18,6 +18,8 @@ except:
 
 
 def insertNewUser(userid, firstname):
+    now = dt.utcnow() + timedelta(hours=8)
+    joindate = now.strftime("%Y-%m-%d")
     try:
         DATABASE_URL = os.environ['DATABASE_URL']
         conn = pg.connect(
@@ -37,12 +39,143 @@ def insertNewUser(userid, firstname):
             cur.execute("SELECT * FROM users WHERE userid=%s;", [userid])
             userdetails = cur.fetchall()
             if not userdetails:
-                cur.execute("INSERT INTO users (userid, firstName) VALUES (%s, %s);",
-                            (userid, firstname))
+                cur.execute("INSERT INTO users (userid, firstName, joinDate) "
+                            "VALUES (%s, %s, %s);",
+                            (userid, firstname, joindate))
     except Exception as e:
         print(e)
-        print("Insert failed")
     conn.close()
+
+
+def upgradeToPremium(userid):
+    try:
+        DATABASE_URL = os.environ['DATABASE_URL']
+        conn = pg.connect(
+            DATABASE_URL,
+            sslmode='require'
+        )
+    except Exception as e:
+        conn = pg.connect(
+            host=HOST,
+            database=DATABASE,
+            user=USER,
+            password=PASSWORD
+        )
+    try:
+        conn.set_session(autocommit=True)
+        with conn.cursor() as cur:
+            cur.execute("SELECT isPremium FROM users WHERE userid=%s;", [userid])
+            result = cur.fetchall()
+            if not result:
+                conn.close()
+                return False, True
+            userIsPremium = result[0][0]
+            if not userIsPremium:
+                conn.close()
+                return False, False
+            else:
+                conn.close()
+                return True, False
+    except Exception as e:
+        print(e)
+
+
+def checkPremium(userid):
+    try:
+        DATABASE_URL = os.environ['DATABASE_URL']
+        conn = pg.connect(
+            DATABASE_URL,
+            sslmode='require'
+        )
+    except Exception as e:
+        conn = pg.connect(
+            host=HOST,
+            database=DATABASE,
+            user=USER,
+            password=PASSWORD
+        )
+    try:
+        conn.set_session(autocommit=True)
+        with conn.cursor() as cur:
+            cur.execute("SELECT isPremium FROM users WHERE userid=%s;", [userid])
+            result = cur.fetchall()
+            if not result:
+                conn.close()
+                return False, True
+            userIsPremium = result[0][0]
+            if not userIsPremium:
+                conn.close()
+                return False, False
+            else:
+                conn.close()
+                return True, False
+    except Exception as e:
+        print(e)
+
+
+def checkValidPromocode(promo_code):
+    try:
+        DATABASE_URL = os.environ['DATABASE_URL']
+        conn = pg.connect(
+            DATABASE_URL,
+            sslmode='require'
+        )
+    except Exception as e:
+        conn = pg.connect(
+            host=HOST,
+            database=DATABASE,
+            user=USER,
+            password=PASSWORD
+        )
+    try:
+        conn.set_session(autocommit=True)
+        with conn.cursor() as cur:
+            cur.execute("SELECT used FROM promocodes WHERE promocode=%s;", [promo_code])
+            result = cur.fetchall()
+            if not result:
+                conn.close()
+                return False, True
+            promoIsUsed = result[0][0]
+            if promoIsUsed:
+                conn.close()
+                return False, False
+            else:
+                conn.close()
+                return True, False
+    except Exception as e:
+        print(e)
+
+
+def checkDailyLimit(inputType, userid, expenseDate):
+    try:
+        DATABASE_URL = os.environ['DATABASE_URL']
+        conn = pg.connect(
+            DATABASE_URL,
+            sslmode='require'
+        )
+    except Exception as e:
+        conn = pg.connect(
+            host=HOST,
+            database=DATABASE,
+            user=USER,
+            password=PASSWORD
+        )
+    try:
+        conn.set_session(autocommit=True)
+        with conn.cursor() as cur:
+            if inputType == "expense":
+                cur.execute("SELECT COUNT(*) FROM expenses "
+                            "WHERE userid=%s AND "
+                            "created_dt=%s;", (userid, expenseDate))
+            if inputType == "income":
+                cur.execute("SELECT COUNT(*) FROM income "
+                            "WHERE userid=%s AND "
+                            "created_dt=%s;", (userid, expenseDate))
+            result = cur.fetchall()
+        conn.close()
+        return result[0][0]
+    except Exception as e:
+        conn.close()
 
 
 def insertExpense(userid, category, amount, desc, created_dt):
@@ -65,10 +198,11 @@ def insertExpense(userid, category, amount, desc, created_dt):
             cur.execute("INSERT INTO expenses (userid, category, amount, description, created_dt) "
                         "VALUES (%s, %s, %s, %s, %s);",
                         (userid, category, amount, desc, created_dt))
+        conn.close()
+        return False
     except Exception as e:
-        print(e)
-        print("Insert failed")
-    conn.close()
+        conn.close()
+        return True
 
 
 def insertIncome(userid, category, amount, desc, created_dt):
@@ -92,10 +226,11 @@ def insertIncome(userid, category, amount, desc, created_dt):
             cur.execute("INSERT INTO income (userid, category, amount, description, created_dt) "
                         "VALUES (%s, %s, %s, %s, %s);",
                         (userid, category, amount, desc, created_dt))
+        conn.close()
+        return False
     except Exception as e:
-        print(e)
-        print("Insert failed")
-    conn.close()
+        conn.close()
+        return True
 
 
 def showCatalogueDay(userid, created_dt):
