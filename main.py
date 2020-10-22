@@ -9,7 +9,6 @@ from randomMessages import catchRandomText
 import telegramcalendar
 import telegram
 import os
-import random
 
 
 try:
@@ -962,10 +961,10 @@ def show_start_menu(message):
     else:
         msg = f"{catchRandomText(message.chat.first_name)}\n\n"
         msg += "Perhaps you could try one of the available commands below 🔽\n\n"
-        bot.send_message(message.chat.id,
-                         text=msg,
-                         reply_markup=start_menu,
-                         parse_mode=telegram.ParseMode.MARKDOWN)
+    bot.send_message(message.chat.id,
+                     text=msg,
+                     reply_markup=start_menu,
+                     parse_mode=telegram.ParseMode.MARKDOWN)
 
 
 '''
