@@ -78,3 +78,18 @@ SELECT used FROM promocodes WHERE promocode='';
 
 INSERT INTO promocodes (promocode)
 VALUES ('DBS-HIDEYUKI')
+
+    INSERT INTO promocodes (promocode)
+    VALUES ('DBS-HIDEYUKI'),
+('DBS-YOUZHI'),
+('DBS-CHEEKEEN'),
+('DBS-YIKSHENG'),
+('DBS-ZHANHUI'),
+('DBS-CHEESENG'),
+('DBS-KEVIN'),
+('DBS-ATSIRAH'),
+('DBS-LESTER'),
+('DBS-TINGTING'),
+('DBS-EUGENE'),
+('DBS-NORA'),
+('CLINGWRAP');

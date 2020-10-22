@@ -4,10 +4,13 @@ import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 from pg_connector import insertNewUser, insertExpense, insertIncome, showCatalogueDay, getDaySummary, getWeekSummary,\
     getMonthSummary, checkPremium, checkDailyLimit, checkValidPromocode, updatePCStatus, upgradeToPremium
-from FAQ import createFAQmessage
+from FAQ import createFAQmessage, FAQ_messages
+from randomMessages import catchRandomText
 import telegramcalendar
 import telegram
 import os
+import random
+
 
 try:
     api_token = os.environ['TG_API_TOKEN']
@@ -18,6 +21,7 @@ except Exception as e:
 
 bot = telebot.TeleBot(api_token, parse_mode=None)
 RECORDLIMIT=3
+VERSION="1.0.1-beta"
 
 commands = {  # command description used in the "help" command
     '/start'       : 'send_welcome',
@@ -49,6 +53,14 @@ def raise_start_menu_message(bot, message):
                      reply_markup=start_menu)
 
 
+def createHelpMessage(first_name):
+    msg = f"Hey {first_name}! 😊\n\n"\
+          "All the commands you need can be found here: \n"\
+          "/start Describes the bot\n"\
+          "/add Add a new expense or income\n"
+    return msg
+
+
 def createFeedbackMessage():
     msg = "*[Page Unavailable]*\n\n" \
           "This feature is currently in development, " \
@@ -70,7 +82,7 @@ def createPremiumMessage():
 
 def createPremiumUserMessage():
     msg = "*Welcome Premium User*☄️\n\n" \
-          "We look forward to serving you better in the near future.\n" \
+          "We look forward to serving you better in the near future.\n\n" \
           "Thank you very much for your continuous support ☺️\n"
     return msg
 
@@ -85,10 +97,10 @@ def createSuccessPremiumMessage(first_name):
 def createAboutMessage():
     msg = "*About Page*\n\n" \
           "Name               ---     AutoFinance Bot\n" \
-          "Version            ---     1.0.0-beta\n" \
-          "Initial release ---     16th Oct 2020\n"\
-          "Creator            ---     Hideyuki Kanazawa\n" \
-          "Github page   ---     https://github.com/hideyukikanazawa"
+          f"Version            ---     {VERSION}\n" \
+          "Initial release  ---     16th Oct 2020\n"\
+          "Creator            ---      Hideyuki Kanazawa\n" \
+          "Github page    ---      https://github.com/hideyukikanazawa"
     return msg
 
 
@@ -190,7 +202,8 @@ def createConfirmMessage(call):
 
 EXIT_BUTTON = InlineKeyboardButton("Cancel", callback_data="exit")
 user_dict = {}
-ADDOPTIONS = [ "Expense 💸:expense", "Income 💰:income", "Recurring 📆:recurring", "Back:back_to_main_menu" ]
+# ADDOPTIONS = [ "Expense 💸:expense", "Income 💰:income", "Recurring 📆:recurring", "Back:back_to_main_menu" ]
+ADDOPTIONS = [ "Expense 💸:expense", "Income 💰:income", "Back:back_to_main_menu" ]
 EXPENSES = ["Dining 🍕:dining", "Fitness 🧗:fitness", "Retail 👜:retail", "Dates 💕:dates", "Transport🚇:transport", "Housing 🏠:housing", "Leisure 🏖:leisure",
             "▪️Misc▪️:misc"]
 INCOMES = [ "Income 💵:income", "Investment 📈:investment", "Bonus 🎁:bonus", "Commission 💎:commission" ]
@@ -331,25 +344,34 @@ def send_welcome(message):
     msg += "AutoFinance Bot assists you with managing cash flow, helping you focus on a prudent & healthy " \
            "lifestyle 💰💰💰\n\n"
     insertNewUser(int(message.chat.id), message.chat.first_name)
-    bot.send_message(message.chat.id, msg)
+    bot.send_message(chat_id=message.chat.id,
+                     text=msg,
+                     reply_markup=start_menu)
 
 
 @bot.message_handler(commands=['help'])
 def send_help(message):
-    msg = "Hey {}! 😊\n\n".format(message.chat.first_name)
-    msg += "All the commands you need can be found here: \n"
-    msg += "/start Describes the bot\n"
-    msg += "/add Add a new expense or income\n"
+    msg = createHelpMessage(message.chat.first_name)
     bot.send_message(message.chat.id, msg)
 
 
 @bot.message_handler(regexp="FAQ ❓")
 def show_FAQ(message):
     msg = createFAQmessage()
-    bot.send_message(message.chat.id,
+    bot.send_message(chat_id=message.chat.id,
                      text=msg,
-                     reply_markup=start_menu,
+                     reply_markup=cancel_markup,
                      parse_mode=telegram.ParseMode.MARKDOWN)
+
+
+# @bot.callback_query_handler(lambda query: query.data in FAQ_messages.keys())
+# def show_FAQ_answer(call):
+#     bot.edit_message_text(chat_id=call.message.chat.id,
+#                           text=f"*Q: {call.data}\n"
+#                                f"A: {FAQ_messages[call.data]}",
+#                           reply_markup=faq_markup,
+#                           message_id=call.message.message_id,
+#                           parse_mode=telegram.ParseMode.MARKDOWN)
 
 
 @bot.message_handler(regexp="Give Feedback 📣")
@@ -357,7 +379,7 @@ def show_feedback(message):
     msg = createFeedbackMessage()
     bot.send_chat_action(message.chat.id, 'typing')
     bot.send_photo(chat_id=message.chat.id,
-                   photo=open('dog_in_rain.jpg', 'rb'),
+                   photo=open('media/dog_in_rain.jpg', 'rb'),
                    caption=msg,
                    parse_mode=telegram.ParseMode.MARKDOWN,
                    reply_markup=start_menu)
@@ -449,11 +471,12 @@ def process_promocode(message):
 @bot.message_handler(regexp="About Page 🗞")
 def show_about_page(message):
     msg = createAboutMessage()
-    bot.send_chat_action(message.chat.id, 'typing', timeout=2)
-    bot.send_message(chat_id=message.chat.id,
-                     text=msg,
-                     parse_mode=telegram.ParseMode.MARKDOWN,
-                     reply_markup=start_menu)
+    bot.send_chat_action(message.chat.id, 'typing')
+    bot.send_photo(chat_id=message.chat.id,
+                   photo=open('media/autofinancebot.png', 'rb'),
+                   caption=msg,
+                   parse_mode=telegram.ParseMode.MARKDOWN,
+                   reply_markup=start_menu)
 
 
 @bot.message_handler(regexp="Show Records 🗃")
@@ -899,7 +922,8 @@ def confirm_entry(call):
                     final_msg = f"*[{insertType} successfully added]*🎉\n" \
                                 f"Category:       {category.capitalize()}\n" \
                                 f"Amount:         ${amount:.2f}\n" \
-                                f"Description:    {desc}\n\n" \
+                                f"Description:    {desc}\n" \
+                                f"Date:           {prettydt}\n\n" \
                                 f"/add another entry?"
                     bot.answer_callback_query(callback_query_id=call.id,
                                               show_alert=True,
@@ -936,11 +960,12 @@ def show_start_menu(message):
         msg = f"Let's start over 👌\n\n" \
               f"Please select one of the available commands below 🔽"
     else:
-        msg = f"Sorry {message.chat.first_name}, we didn't catch that! 🤦🏻‍♂️🤦🏻‍♀️\n\n"
+        msg = f"{catchRandomText(message.chat.first_name)}\n\n"
         msg += "Perhaps you could try one of the available commands below 🔽\n\n"
-    bot.send_message(message.chat.id,
-                     text=msg,
-                     reply_markup=start_menu)
+        bot.send_message(message.chat.id,
+                         text=msg,
+                         reply_markup=start_menu,
+                         parse_mode=telegram.ParseMode.MARKDOWN)
 
 
 '''
