@@ -8,7 +8,7 @@
 ---
 
 
-<img src="media/autofinance_inserting_expense.gif" width="230" height="480"/>
+<img src="media/autofinance_inserting_expense.gif" width="280" height="550"/>
 
 ---
 <br>
@@ -98,28 +98,28 @@ These functions include (but are not limited to) the following:
 ## Additional GIFs of AutoFinance
 
 ### View expense summary
-<img src="media/autofinance_view_expense_summary.gif" width="230" height="480"/>
+<img src="media/autofinance_view_expense_summary.gif" width="280" height="550"/>
 
 <br>
 
 ---
 
 ### View expense catalogue
-<img src="media/autofinance_view_expense_catalogue.gif" width="230" height="480"/>
+<img src="media/autofinance_view_expense_catalogue.gif" width="280" height="550"/>
 
 <br>
 
 ---
 
 ### Premium subscription
-<img src="media/autofinance_premium_subscription.gif" width="230" height="480"/>
+<img src="media/autofinance_premium_subscription.gif" width="280" height="550"/>
 
 <br>
 
 ---
 
 ### Misc. features
-<img src="media/autofinance_misc.gif" width="230" height="480"/>
+<img src="media/autofinance_misc.gif" width="280" height="550"/>
 
 
 ---
