@@ -59,7 +59,7 @@ INSERT INTO users (userid, firstname, joindate)
 VALUES (137906605, 'Hidey', '2020-10-15');
 
 #heroku pg:psql postgresql-metric-50747 --app autofinance-bot
-
+#heroku pg:psql -c "SHOW client_encoding;" --app autofinance-bot
 
 SELECT COALESCE(sum(amount), '$0') AS amount
 FROM expenses WHERE description='d'
